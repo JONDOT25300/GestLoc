@@ -156,7 +156,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--cream);c
 /* PARAPHE */
 .canvas-mini-wrap{border:1.5px dashed var(--border);border-radius:8px;background:#fafcff;cursor:crosshair;position:relative;overflow:hidden;transition:border .15s}
 .canvas-mini-wrap.drawn{border-style:solid;border-color:var(--green-light)}
-.canvas-mini-wrap canvas{display:block;width:100%;touch-action:none}
+.canvas-mini-wrap canvas{display:block;touch-action:none}
 .hint-mini{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:10px;color:var(--border);pointer-events:none;text-align:center;transition:opacity .15s;white-space:nowrap}
 .hint-mini.hidden{opacity:0}
 .opt-row{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border:1px solid var(--border);border-radius:9px;margin-bottom:8px}
@@ -212,6 +212,14 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--cream);c
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 
+.addr-wrap{position:relative}
+.addr-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:0 0 8px 8px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:1000;max-height:220px;overflow-y:auto;display:none}
+.addr-dropdown.open{display:block}
+.addr-item{padding:8px 11px;font-size:12px;cursor:pointer;border-bottom:1px solid #f5f5f5;color:var(--navy);line-height:1.4}
+.addr-item:last-child{border-bottom:none}
+.addr-item:hover{background:var(--green-pale)}
+.addr-item strong{display:block;font-size:12px}
+.addr-item span{font-size:10px;color:var(--muted)}
 /* RESPONSIVE */
 @media(max-width:700px){
   .app{flex-direction:column;height:auto;padding:8px}
@@ -393,6 +401,7 @@ function renderStep(n){
   else if(n===5) html += stepApercu();
 
   document.getElementById('form-body').innerHTML = html;
+  if(n===1) setTimeout(applySCIState, 0);
   if(n===3) initCalcEcheance();
   if(n===5) generatePreview();
 }
@@ -421,13 +430,21 @@ function stepParties(v){
   return `<div class="legal-note">Art. I du contrat type — Loi du 6 juillet 1989 et décret du 29 mai 2015</div>
   <div class="section-block">
     <div class="section-header"><div class="section-roman">B</div><div class="section-name">Bailleur</div></div>
+
+    <!-- Case SCI 18TH August -->
+    <label style="display:flex;align-items:center;gap:9px;cursor:pointer;padding:9px 12px;background:#eef3fb;border:1px solid var(--navy-light);border-radius:8px;margin-bottom:12px;user-select:none">
+      <input type="checkbox" id="chk-sci" style="width:16px;height:16px;accent-color:var(--navy);cursor:pointer" ${v('bNom')==='SCI 18TH August'?'checked':''} onchange="fillSCI(this.checked)">
+      <span style="font-size:12px;font-weight:600;color:var(--navy)">SCI 18TH August</span>
+      <span style="font-size:10px;color:var(--muted);margin-left:4px">— Pré-remplir les champs bailleur</span>
+    </label>
+
     <div class="field-grid g1" style="margin-bottom:11px">
       <div class="field-group"><label>Nom et prénom ou dénomination <span class="req">*</span></label>
         <input id="b-nom" value="${v('bNom')}" placeholder="Ex : Martin Jean-Pierre"></div>
     </div>
     <div class="field-grid g2">
       <div class="field-group"><label>Domicile ou siège social <span class="req">*</span></label>
-        <input id="b-adresse" value="${v('bAdresse')}" placeholder="Adresse complète"></div>
+        <div class="addr-wrap"><input id="b-adresse" value="${v('bAdresse')}" placeholder="Adresse complète" autocomplete="off" oninput="addrSearch(this,'b-adresse-dd')"><div class="addr-dropdown" id="b-adresse-dd"></div></div></div>
       <div class="field-group"><label>Adresse e-mail (facultatif)</label>
         <input type="email" id="b-email" value="${v('bEmail')}" placeholder="bailleur@mail.com"></div>
       <div class="field-group"><label>Qualité du bailleur</label>
@@ -436,7 +453,11 @@ function stepParties(v){
           <option value="morale" ${v('bQualite')==='morale'?'selected':''}>Personne morale</option>
         </select></div>
       <div class="field-group"><label>Mandataire (si applicable)</label>
-        <input id="b-mandataire" value="${v('bMandataire')}" placeholder="Nom, adresse, n° carte pro"></div>
+        <select id="b-mandataire">
+          <option value="" ${!v('bMandataire')?'selected':''}>— Aucun —</option>
+          <option value="Karine SIMAO" ${v('bMandataire')==='Karine SIMAO'?'selected':''}>Karine SIMAO</option>
+          <option value="Philippe JONDOT" ${v('bMandataire')==='Philippe JONDOT'?'selected':''}>Philippe JONDOT</option>
+        </select></div>
     </div>
   </div>
   <div class="section-block">
@@ -469,7 +490,7 @@ function stepBien(v){
     <div class="section-header"><div class="section-roman">A</div><div class="section-name">Localisation et consistance</div></div>
     <div class="field-grid g1" style="margin-bottom:11px">
       <div class="field-group"><label>Adresse complète (rue, bât., étage, porte, ville, CP) <span class="req">*</span></label>
-        <input id="p-adresse" value="${v('pAdresse')}" placeholder="12 rue des Lilas, Bât A, 2e ét., 25000 Besançon"></div>
+        <div class="addr-wrap"><input id="p-adresse" value="${v('pAdresse')}" placeholder="12 rue des Lilas, Bât A, 2e ét., 25000 Besançon" autocomplete="off" oninput="addrSearch(this,'p-adresse-dd')"><div class="addr-dropdown" id="p-adresse-dd"></div></div></div>
     </div>
     <div class="field-grid g2">
       <div class="field-group"><label>Identifiant fiscal du logement</label>
@@ -1206,18 +1227,21 @@ function setupSigCanvas(id){
   if(!canvas||!wrap) return;
   const hint = document.getElementById('hint-'+id);
   const confirmBtn = document.getElementById('btn-confirm-'+id);
-  const ctx = canvas.getContext('2d');
   let drawing = false;
+
+  function getCtx(){
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#0f2545'; ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    return ctx;
+  }
 
   function tryResize(attempt){
     const w = wrap.getBoundingClientRect().width;
     if(w < 10 && attempt < 20){ setTimeout(()=>tryResize(attempt+1), 50); return; }
-    const dpr = window.devicePixelRatio||1;
-    canvas.width = w*dpr; canvas.height = 110*dpr;
+    canvas.width = w; canvas.height = 110;
     canvas.style.width = w+'px'; canvas.style.height = '110px';
-    ctx.scale(dpr,dpr);
-    ctx.strokeStyle = '#0f2545'; ctx.lineWidth = 2.2;
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    getCtx();
   }
   requestAnimationFrame(()=>tryResize(0));
 
@@ -1226,9 +1250,9 @@ function setupSigCanvas(id){
     if(e.touches) return {x:e.touches[0].clientX-r.left, y:e.touches[0].clientY-r.top};
     return {x:e.clientX-r.left, y:e.clientY-r.top};
   }
-  function start(e){ e.preventDefault(); if(sigData[id].done)return; drawing=true; hint.classList.add('hidden'); const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); confirmBtn.disabled=false; }
-  function move(e){ e.preventDefault(); if(!drawing||sigData[id].done)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); }
-  function end(e){ if(!drawing)return; e.preventDefault(); drawing=false; ctx.beginPath(); }
+  function start(e){ e.preventDefault(); if(sigData[id].done)return; drawing=true; hint.classList.add('hidden'); const p=pos(e); const ctx=getCtx(); ctx.beginPath(); ctx.moveTo(p.x,p.y); confirmBtn.disabled=false; }
+  function move(e){ e.preventDefault(); if(!drawing||sigData[id].done)return; const p=pos(e); const ctx=getCtx(); ctx.lineTo(p.x,p.y); ctx.stroke(); }
+  function end(e){ if(!drawing)return; e.preventDefault(); drawing=false; }
 
   canvas.addEventListener('mousedown',start);
   canvas.addEventListener('mousemove',move);
@@ -1415,36 +1439,79 @@ function setupPadCanvas(canvasId, dataKey){
   if(!canvas||!wrap) return;
   const hint = document.getElementById('hint-'+canvasId);
   const okBtn = document.getElementById('ok-'+canvasId);
+
+  // Largeur fixe 300px — simple et fiable
+  canvas.width = 300;
+  canvas.height = 52;
+  canvas.style.width = '100%';
+  canvas.style.height = '52px';
+
   const ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#0f2545';
+  ctx.lineWidth = 1.8;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
   let drawing = false;
+  let lastX = 0, lastY = 0;
 
-  function resize(){
-    const dpr = window.devicePixelRatio||1;
-    const w = wrap.getBoundingClientRect().width;
-    canvas.width = w*dpr; canvas.height = 52*dpr;
-    canvas.style.width = w+'px'; canvas.style.height = '52px';
-    ctx.scale(dpr,dpr);
-    ctx.strokeStyle='#0f2545'; ctx.lineWidth=1.8; ctx.lineCap='round'; ctx.lineJoin='round';
+  function getXY(e){
+    const r = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / r.width;
+    const scaleY = canvas.height / r.height;
+    if(e.touches){
+      return {
+        x: (e.touches[0].clientX - r.left) * scaleX,
+        y: (e.touches[0].clientY - r.top) * scaleY
+      };
+    }
+    return {
+      x: (e.clientX - r.left) * scaleX,
+      y: (e.clientY - r.top) * scaleY
+    };
   }
-  function tryResizePad(attempt){
-    const w = wrap.getBoundingClientRect().width;
-    if(w < 10 && attempt < 20){ setTimeout(()=>tryResizePad(attempt+1), 50); return; }
-    const dpr = window.devicePixelRatio||1;
-    canvas.width = w*dpr; canvas.height = 52*dpr;
-    canvas.style.width = w+'px'; canvas.style.height = '52px';
-    ctx.scale(dpr,dpr);
-    ctx.strokeStyle='#0f2545'; ctx.lineWidth=1.8; ctx.lineCap='round'; ctx.lineJoin='round';
+
+  function start(e){
+    e.preventDefault();
+    if(padData[dataKey].done) return;
+    drawing = true;
+    const p = getXY(e);
+    lastX = p.x; lastY = p.y;
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    hint.classList.add('hidden');
+    okBtn.disabled = false;
   }
-  requestAnimationFrame(()=>tryResizePad(0));
 
-  function pos(e){ const r=canvas.getBoundingClientRect(); if(e.touches)return{x:e.touches[0].clientX-r.left,y:e.touches[0].clientY-r.top}; return{x:e.clientX-r.left,y:e.clientY-r.top}; }
-  function start(e){ e.preventDefault(); if(padData[dataKey].done)return; drawing=true; hint.classList.add('hidden'); const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); okBtn.disabled=false; }
-  function move(e){ e.preventDefault(); if(!drawing||padData[dataKey].done)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); }
-  function end(e){ if(!drawing)return; e.preventDefault(); drawing=false; ctx.beginPath(); }
+  function move(e){
+    e.preventDefault();
+    if(!drawing || padData[dataKey].done) return;
+    const p = getXY(e);
+    ctx.strokeStyle = '#0f2545';
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    lastX = p.x; lastY = p.y;
+  }
 
-  canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',move);
-  canvas.addEventListener('mouseup',end); canvas.addEventListener('mouseleave',end);
-  canvas.addEventListener('touchstart',start,{passive:false}); canvas.addEventListener('touchmove',move,{passive:false}); canvas.addEventListener('touchend',end,{passive:false});
+  function end(e){
+    if(!drawing) return;
+    e.preventDefault();
+    drawing = false;
+    ctx.beginPath();
+  }
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  canvas.addEventListener('mouseup', end);
+  canvas.addEventListener('mouseleave', end);
+  canvas.addEventListener('touchstart', start, {passive:false});
+  canvas.addEventListener('touchmove', move, {passive:false});
+  canvas.addEventListener('touchend', end, {passive:false});
 }
 
 function clearPad(cid){
@@ -2340,6 +2407,90 @@ async function htmlToPdfBase64(htmlDoc, d, sealDate){
 // ═══════════════════════════════════════
 // YOUSIGN
 // ═══════════════════════════════════════
+
+function fillSCI(checked){
+  const fields = {
+    'b-nom':     checked ? 'SCI 18TH August' : '',
+    'b-adresse': checked ? '12 rue des Charmes, 25800 Valdahon' : '',
+    'b-email':   checked ? 'sci.18thaugust@gmail.com' : ''
+  };
+  Object.entries(fields).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if(el){ if(checked){ el.value = val; el.disabled = true; el.style.background='#f0f4fb'; el.style.color='var(--navy-mid)'; }
+            else { el.value = ''; el.disabled = false; el.style.background=''; el.style.color=''; } }
+  });
+  // Qualité → personne morale si SCI
+  const qualite = document.getElementById('b-qualite');
+  if(qualite){ qualite.value = checked ? 'morale' : 'Personne physique'; qualite.disabled = checked; }
+}
+
+function applySCIState(){
+  const chk = document.getElementById('chk-sci');
+  if(chk && chk.checked) fillSCI(true);
+}
+
+// ═══════════════════════════════════════
+// AUTOCOMPLETE ADRESSE (api-adresse.data.gouv.fr)
+// ═══════════════════════════════════════
+const addrTimers = {};
+function addrSearch(input, ddId){
+  const q = input.value.trim();
+  const dd = document.getElementById(ddId);
+  if(!dd) return;
+  if(q.length < 3){ dd.classList.remove('open'); return; }
+  clearTimeout(addrTimers[ddId]);
+  addrTimers[ddId] = setTimeout(async ()=>{
+    try {
+      const res = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(q)}&limit=6`);
+      const data = await res.json();
+      if(!data.features||!data.features.length){ dd.classList.remove('open'); return; }
+      dd.innerHTML = data.features.map(f=>{
+        const p = f.properties;
+        const encoded = encodeURIComponent(JSON.stringify({
+          label: p.label,
+          name: p.name,
+          postcode: p.postcode||'',
+          city: p.city||'',
+          context: p.context||''
+        }));
+        return `<div class="addr-item" onclick="addrSelect('${input.id}','${ddId}','${encoded}')">
+          <strong>${p.name}</strong>
+          <span>${p.postcode} ${p.city}</span>
+        </div>`;
+      }).join('');
+      dd.classList.add('open');
+    } catch(e){ dd.classList.remove('open'); }
+  }, 250);
+}
+
+function addrSelect(inputId, ddId, encoded){
+  const p = JSON.parse(decodeURIComponent(encoded));
+  const dd = document.getElementById(ddId);
+  if(dd){ dd.classList.remove('open'); dd.innerHTML=''; }
+
+  // Remplir le champ adresse principal
+  const input = document.getElementById(inputId);
+  if(input) input.value = p.label;
+
+  // Remplissage automatique des champs selon le contexte
+  if(inputId === 'p-adresse'){
+    // Ville pour le lieu de signature
+    const lieu = document.getElementById('cl-lieu');
+    if(lieu && !lieu.value) lieu.value = p.city;
+  }
+  if(inputId === 'b-adresse'){
+    // Remplir le lieu de signature si pas encore saisi
+    const lieu = document.getElementById('cl-lieu');
+    if(lieu && !lieu.value) lieu.value = p.city;
+  }
+}
+
+// Fermer les dropdowns au clic extérieur
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.addr-wrap')){
+    document.querySelectorAll('.addr-dropdown').forEach(d=>d.classList.remove('open'));
+  }
+});
 
 // ═══════════════════════════════════════
 // TOAST
