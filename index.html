@@ -141,9 +141,12 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--cream);c
 .checks-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
 .fcheck{display:flex;align-items:center;gap:7px;font-size:11px}
 .check-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:background .3s}
-.dot-wait{background:rgba(255,255,255,.2)}
+.dot-wait{background:var(--border)}
 .dot-ok{background:var(--green-light)}
-.fcheck span{color:rgba(255,255,255,.65)}
+.fcheck span{color:var(--navy-mid)}
+/* Dans finalize-panel (fond navy), override */
+.finalize-panel .dot-wait{background:rgba(255,255,255,.2)}
+.finalize-panel .fcheck span{color:rgba(255,255,255,.65)}
 .btn-finalize{width:100%;padding:12px;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;background:var(--green-light);color:#fff;transition:all .15s}
 .btn-finalize:hover:not(:disabled){background:var(--green)}
 .btn-finalize:disabled{opacity:.3;cursor:not-allowed}
@@ -1039,57 +1042,75 @@ function renderSignature(){
       </div>
     </div>
 
-    <div class="sig-section" id="sig-sec-b">
-      <div class="sig-header">
-        <div class="sig-role-info">
-          <div class="sig-avatar av-navy" id="sig-av-b">${(last.bNom||'B').charAt(0)}</div>
-          <div><div class="sig-name">Bailleur — ${last.bNom||'—'}</div><div class="sig-sub">Signez dans le cadre ci-dessous</div></div>
+    <div class="field-grid g2" style="margin-bottom:14px">
+      <div class="sig-section" id="sig-sec-b">
+        <div class="sig-header">
+          <div class="sig-role-info">
+            <div class="sig-avatar av-navy" id="sig-av-b">${(last.bNom||'B').charAt(0)}</div>
+            <div><div class="sig-name">Bailleur — ${last.bNom||'—'}</div><div class="sig-sub">Signez dans le cadre ci-dessous</div></div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-outline btn-sm" onclick="clearSig('b')">Effacer</button>
+            <button class="btn btn-green btn-sm" id="btn-confirm-b" onclick="confirmSig('b')" disabled>Confirmer</button>
+          </div>
         </div>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-outline btn-sm" onclick="clearSig('b')">Effacer</button>
-          <button class="btn btn-green btn-sm" id="btn-confirm-b" onclick="confirmSig('b')" disabled>Confirmer</button>
+        <div class="canvas-wrap" id="wrap-b" style="height:110px">
+          <canvas id="canvas-b" height="110"></canvas>
+          <div class="canvas-hint" id="hint-b">Signez ici avec votre souris ou votre doigt</div>
         </div>
+        <div class="sig-meta" id="meta-b"><span>Zone signature bailleur</span><span id="ts-b"></span></div>
       </div>
-      <div class="canvas-wrap" id="wrap-b" style="height:110px">
-        <canvas id="canvas-b" height="110"></canvas>
-        <div class="canvas-hint" id="hint-b">Signez ici avec votre souris ou votre doigt</div>
+
+      <div class="sig-section" id="sig-sec-l">
+        <div class="sig-header">
+          <div class="sig-role-info">
+            <div class="sig-avatar av-green" id="sig-av-l">${(last.lNom||'L').charAt(0)}</div>
+            <div><div class="sig-name">Locataire — ${(last.lPrenom||'')+' '+(last.lNom||'—')}</div><div class="sig-sub">Signez dans le cadre ci-dessous</div></div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-outline btn-sm" onclick="clearSig('l')">Effacer</button>
+            <button class="btn btn-green btn-sm" id="btn-confirm-l" onclick="confirmSig('l')" disabled>Confirmer</button>
+          </div>
+        </div>
+        <div class="canvas-wrap" id="wrap-l" style="height:110px">
+          <canvas id="canvas-l" height="110"></canvas>
+          <div class="canvas-hint" id="hint-l">Signez ici avec votre souris ou votre doigt</div>
+        </div>
+        <div class="sig-meta" id="meta-l"><span>Zone signature locataire</span><span id="ts-l"></span></div>
       </div>
-      <div class="sig-meta" id="meta-b"><span>Zone signature bailleur</span><span id="ts-b"></span></div>
     </div>
 
     <div class="divider"></div>
 
-    <div class="sig-section" id="sig-sec-l">
-      <div class="sig-header">
-        <div class="sig-role-info">
-          <div class="sig-avatar av-green" id="sig-av-l">${(last.lNom||'L').charAt(0)}</div>
-          <div><div class="sig-name">Locataire — ${(last.lPrenom||'')+' '+(last.lNom||'—')}</div><div class="sig-sub">Signez dans le cadre ci-dessous</div></div>
-        </div>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-outline btn-sm" onclick="clearSig('l')">Effacer</button>
-          <button class="btn btn-green btn-sm" id="btn-confirm-l" onclick="confirmSig('l')" disabled>Confirmer</button>
-        </div>
-      </div>
-      <div class="canvas-wrap" id="wrap-l" style="height:110px">
-        <canvas id="canvas-l" height="110"></canvas>
-        <div class="canvas-hint" id="hint-l">Signez ici avec votre souris ou votre doigt</div>
-      </div>
-      <div class="sig-meta" id="meta-l"><span>Zone signature locataire</span><span id="ts-l"></span></div>
-    </div>
-
-    <div class="divider"></div>
-
-    <div class="finalize-panel">
-      <div class="finalize-title">Finaliser et sceller le contrat</div>
-      <div class="finalize-sub">Les deux parties doivent avoir confirmé leur signature</div>
+    <!-- RÉCAP DOCUMENTS + BROUILLON -->
+    <div class="section-block" style="margin-bottom:14px">
+      <div class="section-header"><div class="section-roman">✓</div><div class="section-name">Vérification avant envoi</div></div>
       <div class="checks-grid">
         <div class="fcheck"><div class="check-dot dot-wait" id="dot-b"></div><span>Signature bailleur</span></div>
         <div class="fcheck"><div class="check-dot dot-wait" id="dot-l"></div><span>Signature locataire</span></div>
-        <div class="fcheck"><div class="check-dot dot-wait" id="dot-date"></div><span>Date et lieu renseignés</span></div>
+        <div class="fcheck"><div class="check-dot ${last.clDateSign||last.fDebut?'dot-ok':'dot-wait'}" id="dot-date"></div><span>Date et lieu renseignés</span></div>
         <div class="fcheck"><div class="check-dot dot-ok"></div><span>Clauses légales incluses</span></div>
+        <div class="fcheck"><div class="check-dot ${last.clAnnexes&&last.clAnnexes.length?'dot-ok':'dot-wait'}"></div><span>Annexes ${last.clAnnexes&&last.clAnnexes.length?'('+last.clAnnexes.length+')':'non renseignées'}</span></div>
+        <div class="fcheck"><div class="check-dot ${last.pDpe?'dot-ok':'dot-wait'}"></div><span>DPE ${last.pDpe?'classe '+last.pDpe:''}</span></div>
       </div>
-      <button class="btn-finalize" id="btn-finalize" onclick="finalizeContract()" disabled>Valider et sceller le contrat</button>
-      <button class="btn-outline-white" onclick="printWithSigs()">🖨 Imprimer avec signatures</button>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:600;color:var(--navy-mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Annexes — Liens de téléchargement</div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Collez un lien Drive, Dropbox ou autre pour chaque document. Ces liens apparaîtront dans l'email envoyé aux deux parties.</div>
+        <div id="annexe-links-list">
+          ${(last.clAnnexeLinks||[]).map((lnk,i)=>`
+          <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+            <input type="text" value="${lnk.nom}" placeholder="Nom du document" onchange="updateAnnexeLink(${i},'nom',this.value)"
+              style="flex:1;font-size:11px;border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-family:'DM Sans',sans-serif;color:var(--navy)">
+            <input type="url" value="${lnk.url}" placeholder="https://drive.google.com/..." onchange="updateAnnexeLink(${i},'url',this.value)"
+              style="flex:2;font-size:11px;border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-family:'DM Sans',sans-serif;color:var(--navy)">
+            <button onclick="removeAnnexeLink(${i})" style="background:none;border:1px solid var(--border);border-radius:7px;padding:4px 8px;cursor:pointer;color:var(--muted);font-size:12px">✕</button>
+          </div>`).join('')}
+        </div>
+        <button onclick="addAnnexeLink()" class="btn btn-outline btn-sm" style="width:100%;margin-top:4px">+ Ajouter un lien</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-outline" onclick="printWithSigs()" style="flex:1">🖨 Aperçu PDF</button>
+      </div>
     </div>
 
     <div style="margin-top:14px;background:#0a1f3d;border:1px solid rgba(34,160,90,.3);border-radius:11px;padding:18px 20px">
@@ -1188,16 +1209,17 @@ function setupSigCanvas(id){
   const ctx = canvas.getContext('2d');
   let drawing = false;
 
-  function resize(){
-    const dpr = window.devicePixelRatio||1;
+  function tryResize(attempt){
     const w = wrap.getBoundingClientRect().width;
+    if(w < 10 && attempt < 20){ setTimeout(()=>tryResize(attempt+1), 50); return; }
+    const dpr = window.devicePixelRatio||1;
     canvas.width = w*dpr; canvas.height = 110*dpr;
     canvas.style.width = w+'px'; canvas.style.height = '110px';
     ctx.scale(dpr,dpr);
     ctx.strokeStyle = '#0f2545'; ctx.lineWidth = 2.2;
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   }
-  setTimeout(resize, 50);
+  requestAnimationFrame(()=>tryResize(0));
 
   function pos(e){
     const r = canvas.getBoundingClientRect();
@@ -1245,13 +1267,58 @@ function confirmSig(id){
   toast(id==='b'?'Signature bailleur enregistrée':'Signature locataire enregistrée','green');
 }
 
+function addAnnexeLink(){
+  const contracts = getContracts();
+  const last = contracts[contracts.length-1];
+  if(!last) return;
+  if(!Array.isArray(last.clAnnexeLinks)) last.clAnnexeLinks = [];
+  last.clAnnexeLinks.push({nom:'', url:''});
+  saveContracts(contracts);
+  renderSignature();
+}
+
+function removeAnnexeLink(i){
+  const contracts = getContracts();
+  const last = contracts[contracts.length-1];
+  if(!last||!last.clAnnexeLinks) return;
+  last.clAnnexeLinks.splice(i,1);
+  saveContracts(contracts);
+  renderSignature();
+}
+
+function updateAnnexeLink(i, field, value){
+  const contracts = getContracts();
+  const last = contracts[contracts.length-1];
+  if(!last||!last.clAnnexeLinks||!last.clAnnexeLinks[i]) return;
+  last.clAnnexeLinks[i][field] = value;
+  saveContracts(contracts);
+}
+
+function toggleAnnexeFix(annexe, checked){
+  const contracts = getContracts();
+  const last = contracts[contracts.length-1];
+  if(!last) return;
+  if(!Array.isArray(last.clAnnexes)) last.clAnnexes = [];
+  if(checked){ if(!last.clAnnexes.includes(annexe)) last.clAnnexes.push(annexe); }
+  else { last.clAnnexes = last.clAnnexes.filter(a=>a!==annexe); }
+  saveContracts(contracts);
+  // Mettre à jour le check du récap
+  const dotAnnexe = document.querySelector('#dot-annexe');
+  if(dotAnnexe) dotAnnexe.className = 'check-dot '+(last.clAnnexes.length?'dot-ok':'dot-wait');
+}
+
 function updateFinalizeState(){
   const both = sigData.b.done && sigData.l.done;
-  document.getElementById('btn-finalize').disabled = !both;
+  const btn = document.getElementById('btn-finalize');
+  if(btn) btn.disabled = !both;
   const pill = document.getElementById('sig-status-pill');
   if(pill){ pill.className='status-pill '+(both?'pill-done':'pill-pending'); pill.textContent=both?'Prêt à sceller':'En attente'; }
   const dotDate = document.getElementById('dot-date');
   if(dotDate) dotDate.className = 'check-dot '+(both?'dot-ok':'dot-wait');
+  const dotB = document.getElementById('dot-b');
+  if(dotB) dotB.className = 'check-dot '+(sigData.b.done?'dot-ok':'dot-wait');
+  const dotL = document.getElementById('dot-l');
+  if(dotL) dotL.className = 'check-dot '+(sigData.l.done?'dot-ok':'dot-wait');
 }
 
 function finalizeContract(){
@@ -1359,7 +1426,16 @@ function setupPadCanvas(canvasId, dataKey){
     ctx.scale(dpr,dpr);
     ctx.strokeStyle='#0f2545'; ctx.lineWidth=1.8; ctx.lineCap='round'; ctx.lineJoin='round';
   }
-  setTimeout(resize,50);
+  function tryResizePad(attempt){
+    const w = wrap.getBoundingClientRect().width;
+    if(w < 10 && attempt < 20){ setTimeout(()=>tryResizePad(attempt+1), 50); return; }
+    const dpr = window.devicePixelRatio||1;
+    canvas.width = w*dpr; canvas.height = 52*dpr;
+    canvas.style.width = w+'px'; canvas.style.height = '52px';
+    ctx.scale(dpr,dpr);
+    ctx.strokeStyle='#0f2545'; ctx.lineWidth=1.8; ctx.lineCap='round'; ctx.lineJoin='round';
+  }
+  requestAnimationFrame(()=>tryResizePad(0));
 
   function pos(e){ const r=canvas.getBoundingClientRect(); if(e.touches)return{x:e.touches[0].clientX-r.left,y:e.touches[0].clientY-r.top}; return{x:e.clientX-r.left,y:e.clientY-r.top}; }
   function start(e){ e.preventDefault(); if(padData[dataKey].done)return; drawing=true; hint.classList.add('hidden'); const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); okBtn.disabled=false; }
@@ -1903,7 +1979,8 @@ async function sealWithOTP(){
           adresse: last.pAdresse||'Contrat de location',
           sealDate,
           contractData: last,
-          pdfBase64
+          pdfBase64,
+          annexeLinks: last.clAnnexeLinks||[]
         })
       });
       toast('Contrat signé envoyé aux deux parties par email !','green');

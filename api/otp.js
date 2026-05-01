@@ -78,7 +78,7 @@ export default async function handler(req, res) {
 
     } else if (action === 'sendContract') {
       console.log('sendContract called');
-      const { fileUrl, pdfBase64 } = req.body;
+      const { fileUrl, pdfBase64, annexeLinks } = req.body;
       const d = contractData;
       if (!d) throw new Error('contractData manquant');
 
@@ -225,8 +225,20 @@ export default async function handler(req, res) {
         ? `<div style="text-align:center;margin:20px 0"><a href="${fileUrl}" style="background:#0f2545;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:bold">Telecharger le contrat PDF signe</a></div><p style="color:#5a6a80;font-size:12px;text-align:center">Lien permanent : <a href="${fileUrl}" style="color:#0f2545">${fileUrl}</a></p>`
         : '';
 
-      // ✅ FIX 3 : replace corrigé — cible </body></html> qui existe réellement dans le template
-      const fullHtml = (dest) => contractHtml(dest).replace('</body></html>', driveLink + '</body></html>');
+      // Liens d'annexes
+      const annexesBlock = (Array.isArray(annexeLinks) && annexeLinks.length)
+        ? `<div style="background:#f8f9fc;border:1px solid #e0e8f0;border-radius:8px;padding:16px;margin:16px 0">
+            <div style="font-size:12px;font-weight:bold;color:#0f2545;margin-bottom:10px">📎 Annexes jointes au contrat</div>
+            ${annexeLinks.filter(l=>l.url).map(l=>`
+              <div style="margin-bottom:8px">
+                <a href="${l.url}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid #d0dce8;border-radius:7px;padding:8px 14px;text-decoration:none;color:#0f2545;font-size:12px;font-weight:500">
+                  📄 ${l.nom || 'Document annexe'}
+                </a>
+              </div>`).join('')}
+           </div>`
+        : '';
+
+      const fullHtml = (dest) => contractHtml(dest).replace('</body></html>', driveLink + annexesBlock + '</body></html>');
 
       // Pièce jointe PDF si fournie
       const attachment = pdfBase64 ? [{
