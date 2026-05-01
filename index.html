@@ -1056,6 +1056,31 @@ function renderSignature(){
       <button class="btn-outline-white" onclick="printWithSigs()">🖨 Imprimer avec signatures</button>
     </div>
 
+    <div style="margin-top:14px;background:#0a1f3d;border:1px solid rgba(34,160,90,.3);border-radius:11px;padding:18px 20px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <div style="width:28px;height:28px;background:#22a05a;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">✍</div>
+        <div>
+          <div style="font-family:'Playfair Display',serif;color:#fff;font-size:14px">Signature électronique légale via YouSign</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:1px">Conforme loi n°2000-230 · OTP SMS · Horodatage certifié</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:14px;line-height:1.5">Chaque partie reçoit un email avec un lien de signature sécurisé. Un code unique par SMS confirme leur identité.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Téléphone bailleur</div>
+          <input id="ys-tel-b" type="tel" placeholder="+33612345678" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Téléphone locataire</div>
+          <input id="ys-tel-l" type="tel" placeholder="+33612345678" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
+        </div>
+      </div>
+      <button id="btn-yousign" onclick="sendToYousign()" style="width:100%;padding:11px;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;background:#22a05a;color:#fff;transition:all .15s">
+        Envoyer pour signature via YouSign →
+      </button>
+      <div id="ys-status" style="margin-top:10px;font-size:11px;text-align:center;min-height:16px;color:rgba(255,255,255,.6)"></div>
+    </div>
+
     <div class="success-card" id="sig-success">
       <div class="success-title">✓ Contrat signé et scellé</div>
       <div class="success-body">Le contrat a été enregistré avec les deux signatures le <strong id="seal-date-disp"></strong>.<br>Pensez à remettre un exemplaire signé à chaque partie. La notice d'information sur les droits et obligations doit être jointe.</div>
@@ -1650,6 +1675,68 @@ ${box('<strong>Service gratuit pour les locataires :</strong> Transfert de l\'en
 </body></html>`;
 }
 
+
+// ═══════════════════════════════════════
+// YOUSIGN
+// ═══════════════════════════════════════
+async function sendToYousign(){
+  const last = getLastContract();
+  const telB = document.getElementById('ys-tel-b').value.trim();
+  const telL = document.getElementById('ys-tel-l').value.trim();
+  const status = document.getElementById('ys-status');
+  const btn = document.getElementById('btn-yousign');
+
+  if(!telB||!telL){ status.style.color='#f09595'; status.textContent='Veuillez saisir les deux numéros de téléphone.'; return; }
+  if(!last.lEmail||!last.bEmail){ status.style.color='#f09595'; status.textContent='Email bailleur et locataire requis dans le contrat.'; return; }
+
+  btn.disabled=true; btn.textContent='Envoi en cours…';
+  status.style.color='rgba(255,255,255,.6)'; status.textContent='Génération du PDF et envoi à YouSign…';
+
+  try {
+    const contractText = buildContractText(last);
+    const pdfBase64 = btoa(unescape(encodeURIComponent(contractText)));
+
+    const response = await fetch('/api/yousign', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        pdfBase64,
+        adresse: last.pAdresse||'Contrat de location',
+        bailleur: {
+          prenom: last.bNom?.split(' ')[0]||'Bailleur',
+          nom: last.bNom?.split(' ').slice(1).join(' ')||last.bNom||'',
+          email: last.bEmail,
+          telephone: telB
+        },
+        locataire: {
+          prenom: last.lPrenom||'Locataire',
+          nom: last.lNom||'',
+          email: last.lEmail,
+          telephone: telL
+        }
+      })
+    });
+
+    const data = await response.json();
+    if(data.success){
+      status.style.color='#22a05a';
+      status.textContent='✓ Emails envoyés ! Chaque partie va recevoir un lien de signature avec code SMS.';
+      btn.textContent='✓ Envoyé avec succès';
+      btn.style.background='#1a7a4a';
+      const contracts = getContracts();
+      const target = editId ? contracts.find(c=>c.id===editId) : contracts[contracts.length-1];
+      if(target){ target.yousignId=data.signatureRequestId; target.yousignSent=new Date().toLocaleDateString('fr-FR'); saveContracts(contracts); }
+      toast('Demande de signature YouSign envoyée avec succès !','green');
+    } else {
+      throw new Error(data.error||'Erreur inconnue');
+    }
+  } catch(err) {
+    status.style.color='#f09595';
+    status.textContent='Erreur : '+err.message;
+    btn.disabled=false;
+    btn.textContent='Réessayer';
+  }
+}
 
 // ═══════════════════════════════════════
 // TOAST
