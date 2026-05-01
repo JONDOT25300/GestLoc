@@ -389,6 +389,7 @@ function renderStep(n){
   else if(n===5) html += stepApercu();
 
   document.getElementById('form-body').innerHTML = html;
+  if(n===3) initCalcEcheance();
   if(n===5) generatePreview();
 }
 
@@ -598,10 +599,44 @@ function stepFinances(v){
         <input id="f-irl" value="${v('fIrl')}" placeholder="Ex : 1er trimestre de chaque année"></div>
     </div>
   </div>
+  <div class="section-block" style="background:#e8f5ee;border-color:#a8dfc0;margin-top:4px">
+    <div class="section-header"><div class="section-roman" style="background:#22a05a">€</div><div class="section-name" style="color:#1a7a4a">Calculateur — 1ère échéance</div></div>
+    <div style="font-size:12px;color:#2a7a4a;margin-bottom:8px">Montant dû à la première échéance, proratisé selon la date d'entrée.</div>
+    <div id="calc-result" style="background:#fff;border-radius:7px;padding:10px 13px;font-size:13px;color:var(--navy)">
+      <span style="color:var(--muted);font-size:12px">Renseignez le loyer et la date d'effet ci-dessus.</span>
+    </div>
+  </div>
   <div class="btn-row">
     <button class="btn btn-outline" onclick="goTo(2)">← Retour</button>
     <button class="btn btn-primary" onclick="saveStep3();goTo(4)">Suivant →</button>
   </div>`;
+}
+
+function initCalcEcheance(){
+  setTimeout(()=>{
+    const calc=()=>{
+      const loyer=parseFloat(document.getElementById('f-loyer')?.value||0);
+      const charges=parseFloat(document.getElementById('f-charges')?.value||0);
+      const debut=document.getElementById('f-debut')?.value;
+      const result=document.getElementById('calc-result');
+      if(!result)return;
+      const total=loyer+charges;
+      if(!total&&!debut){result.innerHTML='<span style="color:var(--muted);font-size:12px">Renseignez le loyer et la date d\'effet ci-dessus.</span>';return;}
+      if(!debut){result.innerHTML='<div style="display:flex;justify-content:space-between"><span>Total mensuel</span><strong>'+total.toLocaleString('fr-FR')+' €</strong></div>';return;}
+      const d=new Date(debut);
+      const jourDebut=d.getDate();
+      const joursTotal=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+      if(jourDebut===1){
+        result.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:600">1ère échéance — mois complet</div><div style="font-size:11px;color:var(--muted)">Entrée le 1er du mois</div></div><strong style="font-size:16px;color:var(--green-light)">'+total.toLocaleString('fr-FR')+' €</strong></div>';
+      }else{
+        const joursR=joursTotal-jourDebut+1;
+        const prorata=Math.round((total/joursTotal)*joursR*100)/100;
+        result.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:600">1ère échéance proratisée</div><div style="font-size:11px;color:var(--muted)">'+joursR+'j / '+joursTotal+'j · du '+d.toLocaleDateString('fr-FR')+' à fin de mois</div></div><strong style="font-size:16px;color:var(--green-light)">'+prorata.toLocaleString('fr-FR')+' €</strong></div><div style="margin-top:7px;padding-top:7px;border-top:1px solid #c0e8d0;display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>Puis chaque mois</span><strong style="color:var(--navy)">'+total.toLocaleString('fr-FR')+' €</strong></div>';
+      }
+    };
+    ['f-loyer','f-charges','f-debut'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',calc);});
+    calc();
+  },100);
 }
 
 function stepClauses(v){
@@ -1598,7 +1633,7 @@ ${sec('III',"Durée et prise d'effet")}
     </table>
   </div>
   <div class="pbox">
-    ${!isP?box('Reconduction tacite à l\'échéance selon loi du 6 juillet 1989. Congé possible à tout moment par le locataire avec préavis légal.','#22a05a','#f0faf4'):''}
+    ${!isP?box("Reconduction tacite à l\'échéance selon loi du 6 juillet 1989. Congé possible à tout moment par le locataire avec préavis légal.",'#22a05a','#f0faf4'):''}
   </div>
 </div>
 
@@ -1628,7 +1663,7 @@ ${sec('IV','Conditions financières','#1a3a6b')}
     </table>
   </div>
 </div>
-${d.fTendue==='oui'?box('⚠ Zone tendue — loyer soumis au loyer de référence majoré fixé par arrêté préfectoral.','#c8a84b','#fdf9ee'):''}
+${d.fTendue==='oui'?box("⚠ Zone tendue — loyer soumis au loyer de référence majoré fixé par arrêté préfectoral.",'#c8a84b','#fdf9ee'):''}
 
 <!-- VI. GARANTIES -->
 ${sec('VI','Garanties')}
@@ -1640,7 +1675,7 @@ ${sec('VI','Garanties')}
     ${d.clHonLocataire?row2('Honoraires locataire',fmtE(d.clHonLocataire)):''}
   </table>
 </div>
-${box('Le dépôt de garantie est limité à 1 mois de loyer hors charges pour un logement vide (art. 22 loi du 6 juillet 1989).','#22a05a','#f0faf4')}
+${box("Le dépôt de garantie est limité à 1 mois de loyer hors charges pour un logement vide (art. 22 loi du 6 juillet 1989).",'#22a05a','#f0faf4')}
 
 <!-- V. TRAVAUX -->
 ${sec('V','Travaux')}
@@ -1648,7 +1683,7 @@ ${box(d.clTravaux||'Néant — aucun travaux effectués depuis la fin du dernier
 
 <!-- VII. SOLIDARITÉ -->
 ${sec('VII','Clause de solidarité')}
-${box('En cas de pluralité de locataires : solidarité et indivisibilité entre eux pour l\'exécution de toutes les obligations du présent contrat.')}
+${box("En cas de pluralité de locataires : solidarité et indivisibilité entre eux pour l\'exécution de toutes les obligations du présent contrat.")}
 
 <!-- VIII. RÉSOLUTOIRE -->
 ${sec('VIII','Clause résolutoire')}
@@ -1671,7 +1706,7 @@ ${d.clParticulieres?`${sec('X','Conditions particulières','#1a7a4a')}${box(d.cl
 <!-- XI. ANNEXES -->
 ${sec('XI','Annexes obligatoires jointes')}
 <div style="margin-bottom:10px">${annexesList}</div>
-${box('La notice d\'information relative aux droits et obligations des locataires et des bailleurs doit obligatoirement être remise à chaque partie lors de la signature (décret du 29 mai 2015).','#c8a84b','#fdf9ee')}
+${box("La notice d\'information relative aux droits et obligations des locataires et des bailleurs doit obligatoirement être remise à chaque partie lors de la signature (décret du 29 mai 2015).",'#c8a84b','#fdf9ee')}
 
 <!-- SIGNATURES -->
 <div class="no-break pb-section">
@@ -1699,7 +1734,7 @@ ${sec('—','Démarches pour le nouveau locataire','#1a7a4a')}
     ${['Réaliser l\'état des lieux d\'entrée avec le bailleur','Résilier et transférer tous vos abonnements','Installer votre connexion Internet','Mise à jour carte grise (ants.gouv.fr)','Inscription sur les listes électorales en mairie','Contacter la CAF pour les aides au logement (APL/ALS)','Vérifier les charges de copropriété applicables'].map(r=>`<div class="dlist-item"><span style="color:#22a05a;flex-shrink:0">→</span>${r}</div>`).join('')}
   </div>
 </div>
-${box('<strong>Service gratuit pour les locataires :</strong> Transfert de l\'ensemble des contrats d\'énergie, box internet, assurance, réexpédition courrier. Lun–Ven 7h–21h · Sam 8h30–18h30 · Dim 9h–17h.','#22a05a','#f0faf4')}
+${box("<strong>Service gratuit pour les locataires :</strong> Transfert de l\'ensemble des contrats d\'énergie, box internet, assurance, réexpédition courrier. Lun–Ven 7h–21h · Sam 8h30–18h30 · Dim 9h–17h.",'#22a05a','#f0faf4')}
 </div>
 
 </div><!-- /doc-inner -->
@@ -1875,167 +1910,329 @@ async function sealWithOTP(){
 }
 
 async function htmlToPdfBase64(htmlDoc, d, sealDate){
-  // Utilise jsPDF pour générer un PDF propre avec toutes les infos du contrat
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-  const navy = [15,37,69]; const muted = [107,122,141]; const green = [34,160,90];
-  const W = 210; const margin = 14; const col = W-margin*2;
-  let y = 15;
+  const navy=[15,37,69], navyMid=[26,58,107], green=[34,160,90], muted=[107,122,141], border=[208,220,232], cream=[248,246,240];
+  const W=210, margin=14, col=W-margin*2;
+  let y=15;
   const isP = d.typeBien==='parking';
-  const loyer = parseFloat(d.fLoyer||0);
-  const charges = parseFloat(d.fCharges||0);
-  const total = loyer+charges;
-  const fmtD = dt => { if(!dt)return '—'; try{return new Date(dt).toLocaleDateString('fr-FR')}catch{return dt} };
-  const fmtE = v => v ? parseFloat(v).toLocaleString('fr-FR')+' €' : '—';
+  const loyer=parseFloat(d.fLoyer||0), charges=parseFloat(d.fCharges||0), total=loyer+charges;
+  const fmtD=dt=>{if(!dt)return'—';try{return new Date(dt).toLocaleDateString('fr-FR')}catch{return dt}};
+  const fmtE=v=>v?parseFloat(v).toLocaleString('fr-FR')+' €':'—';
 
-  const addSection = (code, title, color) => {
-    color = color || navy;
-    doc.setFillColor(238,243,251); doc.rect(margin, y, col, 7, 'F');
-    doc.setFillColor(...color); doc.rect(margin, y, 7, 7, 'F');
-    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(7);
-    doc.text(code, margin+3.5, y+4.5, {align:'center'});
-    doc.setTextColor(...color); doc.setFont('helvetica','bold'); doc.setFontSize(9);
-    doc.text(title, margin+10, y+4.8);
-    y += 10;
+  // Vérifier si on a besoin d'une nouvelle page
+  const checkPage=(needed=20)=>{
+    if(y+needed>278){doc.addPage();y=15;addHeader();}
   };
 
-  const fieldRow = (label, value, col2) => {
-    if(!value || value==='—') return;
-    doc.setTextColor(...muted); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
-    doc.text(label, col2 ? margin+col/2+3 : margin+2, y);
-    doc.setTextColor(...navy); doc.setFont('helvetica','bold'); doc.setFontSize(8);
-    doc.text(String(value), col2 ? margin+col/2+45 : margin+52, y);
-    y += 5;
+  const addHeader=()=>{
+    doc.setFillColor(...navy); doc.rect(margin,y,col,14,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(12);
+    doc.text('GestLoc',margin+3,y+6);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+    doc.text('Contrat de location · Loi 6 juillet 1989 · Décret 29 mai 2015',margin+3,y+11);
+    doc.setFont('helvetica','bold'); doc.setFontSize(7);
+    doc.text(isP?'Bail parking':d.fMeuble==='oui'?'Location meublée':'Location vide',W-margin-3,y+6,{align:'right'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(6);
+    doc.text('GL-'+String(d.id||Date.now()).slice(-6)+' · '+new Date().toLocaleDateString('fr-FR'),W-margin-3,y+11,{align:'right'});
+    y+=18;
   };
 
-  // EN-TÊTE
-  doc.setFillColor(...navy); doc.rect(margin, y, col, 18, 'F');
-  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(16);
-  doc.text('GestLoc', margin+4, y+7);
-  doc.setFont('helvetica','normal'); doc.setFontSize(7);
-  doc.text('Contrat de location · Loi du 6 juillet 1989 · Décret 29 mai 2015', margin+4, y+12);
-  doc.setFont('helvetica','bold'); doc.setFontSize(8);
-  doc.text(isP?'Bail parking/garage':d.fMeuble==='oui'?'Location meublée':'Location vide', W-margin-4, y+7, {align:'right'});
-  doc.setFont('helvetica','normal'); doc.setFontSize(7);
-  doc.text('Réf. GL-'+String(d.id||Date.now()).slice(-6)+' · '+new Date().toLocaleDateString('fr-FR'), W-margin-4, y+12, {align:'right'});
-  y += 22;
+  const sec=(code,title,clr)=>{
+    clr=clr||navy;
+    checkPage(12);
+    doc.setFillColor(235,241,251); doc.rect(margin,y,col,6.5,'F');
+    doc.setFillColor(...clr); doc.rect(margin,y,6.5,6.5,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
+    doc.text(code,margin+3.25,y+4.3,{align:'center'});
+    doc.setTextColor(...clr); doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
+    doc.text(title,margin+9,y+4.5);
+    y+=9;
+  };
+
+  const row=(label,val,x2)=>{
+    if(!val||val==='—')return;
+    const xL=x2?margin+col/2+2:margin+2;
+    const xV=x2?margin+col/2+42:margin+42;
+    doc.setTextColor(...muted); doc.setFont('helvetica','normal'); doc.setFontSize(7);
+    doc.text(label,xL,y);
+    doc.setTextColor(...navy); doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+    const lines=doc.splitTextToSize(String(val),col/2-44);
+    doc.text(lines,xV,y);
+    y+=lines.length>1?lines.length*4:5;
+  };
+
+  const box=(txt,clr,bg)=>{
+    clr=clr||navyMid; bg=bg||[244,246,251];
+    const lines=doc.splitTextToSize(txt,col-8);
+    const h=lines.length*4+6;
+    checkPage(h+2);
+    doc.setFillColor(...bg); doc.rect(margin,y,col,h,'F');
+    doc.setFillColor(...clr); doc.rect(margin,y,2.5,h,'F');
+    doc.setTextColor(...navy); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+    doc.text(lines,margin+5,y+4.5);
+    y+=h+3;
+  };
+
+  // ── PAGE 1 ──
+  addHeader();
 
   // I. PARTIES
-  addSection('I', 'Désignation des parties');
-  doc.setFillColor(250,252,255); doc.setDrawColor(208,220,232);
-  doc.roundedRect(margin, y, col/2-2, 32, 2, 2, 'FD');
-  doc.roundedRect(margin+col/2+2, y, col/2-2, 32, 2, 2, 'FD');
-  doc.setTextColor(...muted); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
-  doc.text('BAILLEUR', margin+3, y+4); doc.text('LOCATAIRE', margin+col/2+5, y+4);
+  sec('I','Désignation des parties');
+  const pY=y;
+  doc.setFillColor(250,252,255); doc.setDrawColor(...border);
+  doc.roundedRect(margin,y,col/2-2,36,1.5,1.5,'FD');
+  doc.roundedRect(margin+col/2+2,y,col/2-2,36,1.5,1.5,'FD');
+  doc.setTextColor(...muted); doc.setFont('helvetica','bold'); doc.setFontSize(6);
+  doc.text('BAILLEUR',margin+3,y+4); doc.text('LOCATAIRE',margin+col/2+5,y+4);
   doc.setTextColor(...navy); doc.setFont('helvetica','bold'); doc.setFontSize(9);
-  doc.text(d.bNom||'—', margin+3, y+9);
-  doc.text((d.lPrenom||'')+' '+(d.lNom||'—'), margin+col/2+5, y+9);
+  doc.text(d.bNom||'—',margin+3,y+9);
+  doc.text((d.lPrenom||'')+' '+(d.lNom||'—'),margin+col/2+5,y+9);
   doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...muted);
-  if(d.bAdresse){ const lines = doc.splitTextToSize(d.bAdresse, col/2-8); doc.text(lines, margin+3, y+14); }
-  if(d.bEmail) doc.text(d.bEmail, margin+3, y+22);
-  if(d.lEmail) doc.text(d.lEmail, margin+col/2+5, y+14);
-  if(d.lNom2) doc.text('2e loc: '+d.lNom2, margin+col/2+5, y+19);
-  if(d.lGarant||d.clGarant) doc.text('Garant: '+(d.lGarant||d.clGarant), margin+col/2+5, y+24);
-  y += 37;
+  let byL=y+14, lyL=y+14;
+  if(d.bAdresse){const ls=doc.splitTextToSize(d.bAdresse,col/2-8);doc.text(ls,margin+3,byL);byL+=ls.length*4;}
+  if(d.bEmail){doc.text(d.bEmail,margin+3,byL);byL+=4;}
+  if(d.bQualite){doc.text(d.bQualite,margin+3,byL);}
+  if(d.lEmail){doc.text(d.lEmail,margin+col/2+5,lyL);lyL+=4;}
+  if(d.lNom2){doc.text('2e loc.: '+d.lNom2,margin+col/2+5,lyL);lyL+=4;}
+  if(d.lGarant||d.clGarant){doc.text('Garant: '+(d.lGarant||d.clGarant),margin+col/2+5,lyL);}
+  y=pY+40;
 
   // II. BIEN
-  addSection('II', 'Objet du contrat');
-  doc.setFillColor(248,246,240); doc.setDrawColor(208,220,232);
-  doc.roundedRect(margin, y, col, 24, 2, 2, 'FD');
+  sec('II','Objet du contrat — Bien loué');
+  doc.setFillColor(...cream); doc.setDrawColor(...border);
+  doc.roundedRect(margin,y,col,isP?14:32,1.5,1.5,'FD');
   doc.setTextColor(...navy); doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
-  doc.text(d.pAdresse||'—', margin+3, y+6);
-  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...muted);
+  doc.text(d.pAdresse||'—',margin+3,y+6);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...muted);
   if(!isP){
-    doc.text(`Type: ${d.pType||''} ${d.fMeuble==='oui'?'meublé':'vide'} · Surface: ${d.pSurface||'—'} m² · Pièces: ${d.pPieces||'—'}`, margin+3, y+12);
-    doc.text(`Habitat: ${d.pHabitat||'—'} · Régime: ${d.pRegime||'—'} · DPE: ${d.pDpe||'—'} · Chauffage: ${d.pChauffage||'—'}`, margin+3, y+18);
+    doc.text(`${d.pType||''} ${d.fMeuble==='oui'?'meublé':'vide'} · ${d.pSurface||'—'} m² · ${d.pPieces||'—'} pièce(s)`,margin+3,y+12);
+    doc.text(`${d.pHabitat||'—'} · ${d.pRegime||'—'} · Période: ${d.pPeriode||'—'}`,margin+3,y+18);
+    doc.text(`Chauffage: ${d.pChauffage||'—'} · ECS: ${d.pEcs||'—'} · DPE: `,margin+3,y+24);
+    doc.setFillColor(...navy); doc.setTextColor(255,255,255);
+    doc.roundedRect(margin+78,y+21,8,7,1,1,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    doc.text(d.pDpe||'?',margin+82,y+26,{align:'center'});
+    if(d.pExtras){doc.setTextColor(...muted);doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text('Autres: '+d.pExtras,margin+3,y+30);}
   } else {
-    doc.text(`Place/Garage n° ${d.pNumBox||'—'}`, margin+3, y+12);
+    doc.text('Place/Garage n° '+(d.pNumBox||'—'),margin+3,y+11);
   }
-  y += 29;
+  y+=isP?18:36;
+  if(d.pUsage&&!isP){box("Destination: "+d.pUsage);}
 
-  // III & IV. DURÉE & FINANCES
-  addSection('III/IV', 'Durée et conditions financières');
-  doc.setFillColor(240,244,251); doc.roundedRect(margin, y, col/3-2, 16, 2, 2, 'F');
-  doc.roundedRect(margin+col/3+1, y, col/3-2, 16, 2, 2, 'F');
-  doc.setFillColor(...navy); doc.roundedRect(margin+2*col/3+2, y, col/3-2, 16, 2, 2, 'F');
-  doc.setTextColor(...muted); doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
-  doc.text('LOYER HC', margin+col/6, y+4, {align:'center'});
-  doc.text('CHARGES', margin+col/6+col/3+1, y+4, {align:'center'});
-  doc.setTextColor(255,255,255); doc.text('TOTAL MENSUEL', margin+col/6+2*col/3+2, y+4, {align:'center'});
-  doc.setTextColor(...navy); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-  doc.text(fmtE(d.fLoyer), margin+col/6, y+11, {align:'center'});
-  doc.text(fmtE(d.fCharges), margin+col/6+col/3+1, y+11, {align:'center'});
-  doc.setTextColor(255,255,255); doc.text(total.toLocaleString('fr-FR')+' €', margin+col/6+2*col/3+2, y+11, {align:'center'});
-  y += 20;
-  doc.setFillColor(250,252,255); doc.setDrawColor(208,220,232);
-  doc.roundedRect(margin, y, col, 18, 2, 2, 'FD');
-  doc.setTextColor(...navy); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
-  doc.text(`Début: ${fmtD(d.fDebut)} · Durée: ${d.fDuree||'—'} · Paiement: ${d.fPeriodicite||'Mensuel'} ${d.fEcheance||'à échoir'}`, margin+3, y+6);
-  doc.text(`Date paiement: ${d.fDatePaiement||'—'} · Dépôt garantie: ${fmtE(d.clDepot||d.fDepot)}`, margin+3, y+12);
-  y += 23;
+  // III. DURÉE
+  sec('III',"Date de prise d'effet et durée");
+  const dY=y;
+  doc.setFillColor(250,252,255); doc.setDrawColor(...border);
+  doc.roundedRect(margin,y,col/2-2,isP?16:22,1.5,1.5,'FD');
+  doc.roundedRect(margin+col/2+2,y,col/2-2,isP?16:22,1.5,1.5,'FD');
+  y+=5;
+  row("Date d'effet",fmtD(d.fDebut));
+  row('Durée',d.fDuree);
+  if(!isP)row('Type',d.fMeuble==='oui'?'Meublé':'Vide');
+  if(d.fEvenement)row('Motif durée réduite',d.fEvenement);
+  y=dY+(isP?20:26);
+  if(!isP){box("En l'absence de proposition de renouvellement, le bail est reconduit tacitement. Le locataire peut donner conge a tout moment avec le preavis legal.");}
 
-  // V-VIII CLAUSES
-  addSection('V-VIII', 'Clauses légales');
-  const clauses = [
-    'Solidarité et indivisibilité entre colocataires pour toutes les obligations du présent contrat.',
-    'Clause résolutoire: défaut loyer/charges · défaut dépôt garantie · défaut assurance · trouble voisinage.',
-    d.clTravaux ? 'Travaux: '+d.clTravaux : 'Travaux: Néant.'
-  ];
-  if(d.clParticulieres) clauses.push('Conditions particulières: '+d.clParticulieres);
-  clauses.forEach(cl => {
-    doc.setFillColor(244,246,251); doc.rect(margin, y, 2, 5, 'F');
-    doc.setFillColor(244,246,251); doc.rect(margin+2, y, col-2, 5, 'F');
-    doc.setTextColor(...navy); doc.setFont('helvetica','normal'); doc.setFontSize(7);
-    const lines = doc.splitTextToSize(cl, col-6);
-    doc.text(lines, margin+4, y+3.5);
-    y += lines.length > 1 ? lines.length*4+2 : 7;
-  });
-  y += 3;
-
-  // ANNEXES
-  if(Array.isArray(d.clAnnexes) && d.clAnnexes.length){
-    addSection('XI', 'Annexes');
-    d.clAnnexes.forEach(a => {
-      doc.setDrawColor(208,220,232); doc.rect(margin+2, y, 4, 4);
-      doc.setTextColor(...navy); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
-      doc.text(a, margin+8, y+3.2);
-      y += 6;
-    });
-    y += 3;
+  // IV. FINANCES
+  sec('IV','Conditions financières');
+  
+  // Calcul première échéance proratisée
+  let premiereEcheance = total;
+  let premiereEcheanceLabel = 'Total mensuel (1er mois complet)';
+  if(d.fDebut){
+    const debut = new Date(d.fDebut);
+    const joursRestants = new Date(debut.getFullYear(), debut.getMonth()+1, 0).getDate() - debut.getDate() + 1;
+    const joursTotal = new Date(debut.getFullYear(), debut.getMonth()+1, 0).getDate();
+    if(debut.getDate() > 1){
+      premiereEcheance = Math.round((total / joursTotal) * joursRestants * 100) / 100;
+      premiereEcheanceLabel = `1ère échéance proratisée (${joursRestants}j/${joursTotal}j)`;
+    }
   }
 
-  // NOUVELLE PAGE si nécessaire
-  if(y > 230){ doc.addPage(); y = 15; }
+  doc.setFillColor(240,244,251); doc.roundedRect(margin,y,col/3-2,16,1.5,1.5,'F');
+  doc.roundedRect(margin+col/3+1,y,col/3-2,16,1.5,1.5,'F');
+  doc.setFillColor(...navy); doc.roundedRect(margin+2*col/3+2,y,col/3-2,16,1.5,1.5,'F');
+  doc.setTextColor(...muted); doc.setFont('helvetica','normal'); doc.setFontSize(6);
+  doc.text('LOYER HORS CHARGES',margin+col/6,y+4,{align:'center'});
+  doc.text('CHARGES / MOIS',margin+col/6+col/3+1,y+4,{align:'center'});
+  doc.setTextColor(255,255,255); doc.text('TOTAL MENSUEL',margin+col/6+2*col/3+2,y+4,{align:'center'});
+  doc.setTextColor(...navy); doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  doc.text(fmtE(d.fLoyer),margin+col/6,y+12,{align:'center'});
+  doc.text(fmtE(d.fCharges),margin+col/6+col/3+1,y+12,{align:'center'});
+  doc.setTextColor(255,255,255); doc.text(total.toLocaleString('fr-FR')+' €',margin+col/6+2*col/3+2,y+12,{align:'center'});
+  y+=20;
 
-  // BLOC SIGNATURE SCELLÉ
+  // Calcul première échéance proratisée
+  premiereEcheance = total;
+  premiereEcheanceLabel = '1ere echeance - mois complet';
+  if(d.fDebut){
+    const debut = new Date(d.fDebut);
+    const jourDebut = debut.getDate();
+    const joursTotal = new Date(debut.getFullYear(), debut.getMonth()+1, 0).getDate();
+    if(jourDebut > 1){
+      const joursRestants = joursTotal - jourDebut + 1;
+      premiereEcheance = Math.round((total / joursTotal) * joursRestants * 100) / 100;
+      premiereEcheanceLabel = 'Echeance proratisee ('+joursRestants+'j / '+joursTotal+'j)';
+    }
+  }
   doc.setFillColor(232,245,238); doc.setDrawColor(...green);
-  doc.roundedRect(margin, y, col, 40, 2, 2, 'FD');
-  doc.setTextColor(...green); doc.setFont('helvetica','bold'); doc.setFontSize(12);
-  doc.text('✓ CONTRAT SIGNÉ ÉLECTRONIQUEMENT', margin+col/2, y+9, {align:'center'});
-  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(42,122,74);
-  doc.text(`Scellé le ${sealDate}`, margin+col/2, y+17, {align:'center'});
-  doc.setFontSize(7.5);
-  doc.text('Conforme loi n°2000-230 du 13 mars 2000 · Code OTP par email · Horodatage certifié', margin+col/2, y+23, {align:'center'});
-  doc.setDrawColor(180,220,200); doc.line(margin+4, y+28, margin+col-4, y+28);
-  doc.setTextColor(...muted); doc.setFontSize(7);
-  doc.text(`Bailleur: ${d.bNom||'—'}`, margin+4, y+33);
-  doc.text(`Locataire: ${(d.lPrenom||'')+' '+(d.lNom||'—')}`, margin+col/2, y+33);
-  doc.text(`Fait à ${d.clLieu||'—'}, le ${fmtD(d.clDateSign)}`, margin+4, y+38);
-  y += 45;
+  doc.roundedRect(margin,y,col,10,1.5,1.5,'FD');
+  doc.setTextColor(42,122,74); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+  doc.text(premiereEcheanceLabel+' :',margin+3,y+6);
+  doc.setFontSize(10);
+  doc.text(premiereEcheance.toLocaleString('fr-FR')+' €',W-margin-3,y+6.5,{align:'right'});
+  y+=14;
 
-  // FOOTER sur toutes les pages
-  const pages = doc.internal.getNumberOfPages();
+  doc.setFillColor(250,252,255); doc.setDrawColor(...border);
+  doc.roundedRect(margin,y,col,20,1.5,1.5,'FD');
+  const fY=y; y+=5;
+  row('Périodicité',d.fPeriodicite||'Mensuel');
+  row('Modalité',d.fEcheance||'à échoir');
+  y=fY+5;
+  row('Date de paiement',d.fDatePaiement,'r');
+  row('Lieu de paiement',d.fLieuPaiement,'r');
+  y=fY+24;
+
+  if(d.fTendue==='oui'){box("⚠ Zone tendue — loyer soumis au loyer de référence majoré fixé par arrêté préfectoral.",[200,120,0],[253,249,238]);}
+  if(d.fIrl){box("Révision IRL : "+d.fIrl);}
+
+  // Première échéance dans le PDF aussi
+  if(d.fDebut){
+    const debut2=new Date(d.fDebut);
+    const jourD=debut2.getDate();
+    const joursT=new Date(debut2.getFullYear(),debut2.getMonth()+1,0).getDate();
+    if(jourD>1){
+      const joursR=joursT-jourD+1;
+      const pe=Math.round((total/joursT)*joursR*100)/100;
+      box(`Montant total dû à la 1ère échéance (${joursR}j/${joursT}j) : ${pe.toLocaleString('fr-FR')} € — Loyer proratisé du ${fmtD(d.fDebut)} à fin de mois.`,[...green],[232,245,238]);
+    }
+  }
+
+  // VI. GARANTIES
+  sec('VI','Garanties');
+  doc.setFillColor(250,252,255); doc.setDrawColor(...border);
+  doc.roundedRect(margin,y,col,18,1.5,1.5,'FD');
+  const gY=y; y+=5;
+  row('Dépôt de garantie',fmtE(d.clDepot||d.fDepot));
+  row('Garant',d.clGarant||d.lGarant);
+  if(d.clHonBailleur)row('Honoraires bailleur',fmtE(d.clHonBailleur));
+  if(d.clHonLocataire)row('Honoraires locataire',fmtE(d.clHonLocataire));
+  y=gY+22;
+  box("Le dépôt de garantie est limité à 1 mois de loyer hors charges pour un logement vide (art. 22 loi 6 juillet 1989).",[...green],[232,245,238]);
+
+  // V. TRAVAUX
+  sec('V','Travaux');
+  box(d.clTravaux||'Néant — aucun travail effectué depuis la fin du dernier contrat.');
+
+  // VII & VIII. CLAUSES
+  checkPage(35);
+  sec('VII','Clause de solidarité');
+  box("En cas de pluralité de locataires : solidarité et indivisibilité entre eux pour l'exécution de toutes les obligations du présent contrat.");
+
+  sec('VIII','Clause résolutoire');
+  ['Défaut de paiement du loyer, des provisions sur charges ou de la régularisation annuelle',
+   'Défaut de versement du dépôt de garantie',
+   "Défaut d'assurance des risques locatifs par le locataire",
+   'Trouble de voisinage constaté par décision de justice passée en force de chose jugée'
+  ].forEach(c=>{
+    checkPage(8);
+    doc.setFillColor(252,235,235); doc.rect(margin,y,2,[200,57,57]); 
+    doc.setFillColor(252,235,235); doc.rect(margin+2,y,col-2,6,'F');
+    doc.setFillColor(200,57,57); doc.rect(margin,y,2.5,6,'F');
+    doc.setTextColor(...navy); doc.setFont('helvetica','normal'); doc.setFontSize(7);
+    doc.text('• '+c,margin+5,y+4);
+    y+=8;
+  });
+  y+=2;
+
+  // X. CONDITIONS PARTICULIÈRES
+  if(d.clParticulieres){
+    checkPage(20);
+    sec('X','Conditions particulières',[...green]);
+    box(d.clParticulieres,[...green],[232,245,238]);
+  }
+
+  // XI. ANNEXES
+  if(Array.isArray(d.clAnnexes)&&d.clAnnexes.length){
+    checkPage(10+d.clAnnexes.length*6);
+    sec('XI','Annexes obligatoires jointes');
+    d.clAnnexes.forEach(a=>{
+      checkPage(7);
+      doc.setFillColor(250,252,255); doc.setDrawColor(...border);
+      doc.rect(margin+2,y,4,4);
+      doc.setTextColor(...navy); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+      doc.text(a,margin+8,y+3.2);
+      y+=6;
+    });
+    y+=3;
+    box("La notice d'information relative aux droits et obligations des locataires et bailleurs doit obligatoirement être remise lors de la signature (décret 29 mai 2015).",[200,120,0],[253,249,238]);
+  }
+
+  // SIGNATURES
+  checkPage(60);
+  sec('—','Signatures des parties et scellement');
+  
+  // Lu et approuvé
+  doc.setFillColor(248,249,252); doc.setDrawColor(...border);
+  doc.roundedRect(margin,y,col,22,1.5,1.5,'FD');
+  doc.setTextColor(...muted); doc.setFont('helvetica','normal'); doc.setFontSize(7);
+  doc.text('Mention à apposer de la main de chaque partie avant signature :',margin+3,y+5);
+  doc.setTextColor(...navy); doc.setFont('helvetica','italic'); doc.setFontSize(10);
+  doc.text('"Lu et approuvé — bon pour accord"',margin+3,y+12);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...muted);
+  doc.text('Bailleur: '+(d.bNom||'—'),margin+3,y+19);
+  doc.text('Locataire: '+(d.lPrenom||'')+' '+(d.lNom||'—'),margin+col/2,y+19);
+  y+=26;
+
+  // Lieu et date
+  doc.setTextColor(...navy); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  doc.text('Fait à '+(d.clLieu||'—')+', le '+fmtD(d.clDateSign||d.fDebut),margin,y);
+  y+=8;
+
+  // Zones de signature manuscrite
+  doc.setFillColor(250,252,255); doc.setDrawColor(...border);
+  doc.roundedRect(margin,y,col/2-3,28,1.5,1.5,'FD');
+  doc.roundedRect(margin+col/2+3,y,col/2-3,28,1.5,1.5,'FD');
+  doc.setTextColor(...muted); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
+  doc.text('BAILLEUR',margin+3,y+5); doc.text('LOCATAIRE',margin+col/2+6,y+5);
+  doc.setTextColor(...navy); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+  doc.text(d.bNom||'—',margin+3,y+10);
+  doc.text((d.lPrenom||'')+' '+(d.lNom||'—'),margin+col/2+6,y+10);
+  doc.setDrawColor(...navy);
+  doc.line(margin+3,y+24,margin+col/2-6,y+24);
+  doc.line(margin+col/2+6,y+24,margin+col-3,y+24);
+  doc.setTextColor(...muted); doc.setFont('helvetica','normal'); doc.setFontSize(6);
+  doc.text('Signature',margin+3,y+27); doc.text('Signature',margin+col/2+6,y+27);
+  y+=32;
+
+  // Bloc scellé électroniquement
+  checkPage(28);
+  doc.setFillColor(232,245,238); doc.setDrawColor(...green);
+  doc.roundedRect(margin,y,col,26,1.5,1.5,'FD');
+  doc.setTextColor(...green); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+  doc.text('✓ SIGNÉ ÉLECTRONIQUEMENT VIA OTP EMAIL',margin+col/2,y+8,{align:'center'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(42,122,74);
+  doc.text('Scellé le '+sealDate,margin+col/2,y+15,{align:'center'});
+  doc.setFontSize(7);
+  doc.text('Conforme loi n°2000-230 du 13 mars 2000 · Identification par code OTP email · Horodatage certifié',margin+col/2,y+20,{align:'center'});
+  doc.setTextColor(...muted); doc.setFontSize(6.5);
+  doc.text('Bailleur: '+(d.bNom||'—')+' — '+(d.bEmail||'—'),margin+4,y+25);
+  doc.text('Locataire: '+(d.lPrenom||'')+' '+(d.lNom||'—')+' — '+(d.lEmail||'—'),margin+col/2,y+25);
+  y+=30;
+
+  // FOOTER toutes pages
+  const pages=doc.internal.getNumberOfPages();
   for(let i=1;i<=pages;i++){
     doc.setPage(i);
-    doc.setFillColor(240,244,251); doc.rect(0, 285, 210, 12, 'F');
-    doc.setTextColor(...muted); doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
-    doc.text('GestLoc · Loi du 6 juillet 1989 · Décret du 29 mai 2015 · Document officiel', margin, 291);
-    doc.text(`Page ${i} sur ${pages}`, W-margin, 291, {align:'right'});
+    doc.setFillColor(...navy); doc.rect(0,287,210,10,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+    doc.text('GestLoc · Loi du 6 juillet 1989 · Décret 29 mai 2015 · Document officiel',margin,293);
+    doc.text('Page '+i+' sur '+pages,W-margin,293,{align:'right'});
   }
 
   return doc.output('datauristring').split(',')[1];
 }
-
 
 // ═══════════════════════════════════════
 // YOUSIGN
