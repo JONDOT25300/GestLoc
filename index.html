@@ -1323,10 +1323,6 @@ function renderParaphe(){
         <div class="toggle ${printOpts.paraphe?'on':''}" id="tog-paraphe" onclick="toggleOpt('paraphe')"></div>
       </div>
       <div class="opt-row">
-        <div><div class="opt-label">Mention "Lu et approuvé" sur dernière page</div><div class="opt-sub">Recommandée avant les signatures</div></div>
-        <div class="toggle ${printOpts.lua?'on':''}" id="tog-lua" onclick="toggleOpt('lua')"></div>
-      </div>
-      <div class="opt-row">
         <div><div class="opt-label">Numérotation des pages</div><div class="opt-sub">"Page X sur N — Paraphes :"</div></div>
         <div class="toggle ${printOpts.num?'on':''}" id="tog-num" onclick="toggleOpt('num')"></div>
       </div>
@@ -1478,23 +1474,12 @@ function buildProfessionalPDF(d, sigs, pads, opts){
 
   const box = (content, borderClr='#2a5298', bgClr='#f4f6fb') => `<div style="border-left:3px solid ${borderClr};background:${bgClr};border-radius:0 6px 6px 0;padding:8px 12px;margin:6px 0;font-size:8.5pt;line-height:1.6">${content}</div>`;
 
-  const parapheBar = hasParaphes ? `<div style="position:running(footer);display:flex;align-items:flex-end;justify-content:space-between;padding:4px 0;border-top:1px solid #e4eaf3;font-size:7pt;color:#9aaac0">
-    <span>GestLoc · Loi du 6 juil. 1989 · Décret 29 mai 2015${opts&&opts.num?' · Page <span class="pageNumber"></span>':''}</span>
-    <div style="display:flex;gap:8px;align-items:flex-end">
-      ${opts&&opts.num?'<span>Paraphes :</span>':''}
-      ${pbSig?`<img src="${pbSig}" style="width:40px;height:20px;border-bottom:1px solid #0f2545;object-fit:contain;opacity:.8">`:'<span style="display:inline-block;width:40px;border-bottom:1px solid #ccc"></span>'}
-      ${plSig?`<img src="${plSig}" style="width:40px;height:20px;border-bottom:1px solid #0f2545;object-fit:contain;opacity:.8">`:'<span style="display:inline-block;width:40px;border-bottom:1px solid #ccc"></span>'}
-    </div>
-  </div>` : '';
+  const parapheBar = hasParaphes ? `
+    <img src="${pbSig||''}" style="width:40px;height:20px;border-bottom:1px solid #0f2545;object-fit:contain;opacity:.8;${pbSig?'':'visibility:hidden'}">
+    <img src="${plSig||''}" style="width:40px;height:20px;border-bottom:1px solid #0f2545;object-fit:contain;opacity:.8;${plSig?'':'visibility:hidden'}">
+  ` : '';
 
-  const luaBlock = opts&&opts.lua ? `<div style="padding:10px 14px;border:1px solid #d0dce8;border-radius:7px;background:#f8f9fc;margin-bottom:12px">
-    <div style="font-size:7.5pt;color:#6b7a8d;margin-bottom:6px">Mention manuscrite à apposer de la main de chaque partie avant signature :</div>
-    <div style="font-size:12pt;font-family:Georgia,serif;color:#0f2545;font-style:italic;margin-bottom:10px">"Lu et approuvé — bon pour accord"</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-      <div><div style="font-size:7.5pt;color:#6b7a8d;margin-bottom:4px">Bailleur — ${d.bNom||'—'}</div><div style="height:26px;border-bottom:1.5px solid #0f2545"></div></div>
-      <div><div style="font-size:7.5pt;color:#6b7a8d;margin-bottom:4px">Locataire — ${(d.lPrenom||'')+' '+(d.lNom||'—')}</div><div style="height:26px;border-bottom:1.5px solid #0f2545"></div></div>
-    </div>
-  </div>` : '';
+  const luaBlock = '';
 
   const sigBlock = (name, role, imgData, ts) => `<div style="border:1px solid #d0dce8;border-radius:8px;padding:12px 14px;background:#fafcff">
     <div style="font-size:7.5pt;color:#8a9ab5;text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px">${role}</div>
@@ -1558,18 +1543,39 @@ table.info{width:100%;border-collapse:collapse}
 .df-ref{font-size:7.5pt;color:rgba(255,255,255,.35);text-align:right}
 
 /* PARAPHE ROW (bottom of each printed page) */
-@page { margin: 0; size: A4; }
+@page { margin: 0 0 1.4cm 0; size: A4; }
 @media print{
   body{background:#fff}
   .doc{box-shadow:none;width:100%}
-  .doc-inner{padding:1cm 1.3cm}
+  .doc-inner{padding:1cm 1.3cm 0.5cm}
   .doc-footer{padding:8px 1.3cm}
   .pb-section{page-break-before:always}
   .pb-section:first-child{page-break-before:auto}
   .no-break{page-break-inside:avoid}
+  .print-footer{display:flex!important}
+}
+.print-footer{
+  display:none;
+  position:fixed;
+  bottom:0;left:0;right:0;
+  height:1.2cm;
+  padding:4px 1.3cm;
+  background:#fff;
+  border-top:1px solid #e4eaf3;
+  font-size:7pt;color:#9aaac0;
+  align-items:center;
+  justify-content:space-between;
+  z-index:9999;
 }
 </style>
 </head><body>
+<div class="print-footer">
+  <span>GestLoc · Loi du 6 juil. 1989 · Décret 29 mai 2015</span>
+  <div style="display:flex;gap:8px;align-items:center">
+    ${opts&&opts.num?'<span>Paraphes :</span>':''}
+    ${parapheBar}
+  </div>
+</div>
 <div class="doc">
 <div class="doc-inner">
 
@@ -2010,25 +2016,48 @@ async function htmlToPdfBase64(htmlDoc, d, sealDate){
 
   // II. BIEN
   sec('II','Objet du contrat — Bien loué');
+  const bienStartY = y;
   doc.setFillColor(...cream); doc.setDrawColor(...border);
-  doc.roundedRect(margin,y,col,isP?14:32,1.5,1.5,'FD');
+  // Adresse
+  doc.roundedRect(margin,y,col,10,1.5,1.5,'FD');
   doc.setTextColor(...navy); doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
-  doc.text(d.pAdresse||'—',margin+3,y+6);
-  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...muted);
+  doc.text(d.pAdresse||'—',margin+3,y+7);
+  y+=13;
   if(!isP){
-    doc.text(`${d.pType||''} ${d.fMeuble==='oui'?'meublé':'vide'} · ${d.pSurface||'—'} m² · ${d.pPieces||'—'} pièce(s)`,margin+3,y+12);
-    doc.text(`${d.pHabitat||'—'} · ${d.pRegime||'—'} · Période: ${d.pPeriode||'—'}`,margin+3,y+18);
-    doc.text(`Chauffage: ${d.pChauffage||'—'} · ECS: ${d.pEcs||'—'} · DPE: `,margin+3,y+24);
+    // Ligne 1 : type, surface, pièces
+    row('Type de bien', `${d.pType||'—'} ${d.fMeuble==='oui'?'meublé':'vide'} · ${d.pSurface||'—'} m² · ${d.pPieces||'—'} pièce(s)`);
+    // Ligne 2 : identifiant fiscal
+    if(d.pFiscal) row('Identifiant fiscal', d.pFiscal);
+    // Ligne 3 : habitat, régime, période
+    row("Type d'habitat", `${d.pHabitat||'—'} · ${d.pRegime||'—'} · Période: ${d.pPeriode||'—'}`);
+    // Ligne 4 : chauffage, ECS, DPE
+    checkPage(8);
+    const dpeX = margin+130;
+    doc.setTextColor(...muted); doc.setFont('helvetica','normal'); doc.setFontSize(7);
+    doc.text('Chauffage:',margin+2,y);
+    doc.setTextColor(...navy); doc.setFont('helvetica','bold');
+    doc.text(d.pChauffage||'—',margin+22,y);
+    doc.setTextColor(...muted); doc.setFont('helvetica','normal');
+    doc.text('ECS:',margin+60,y);
+    doc.setTextColor(...navy); doc.setFont('helvetica','bold');
+    doc.text(d.pEcs||'—',margin+68,y);
+    doc.setTextColor(...muted); doc.setFont('helvetica','normal');
+    doc.text('DPE:',dpeX,y);
     doc.setFillColor(...navy); doc.setTextColor(255,255,255);
-    doc.roundedRect(margin+78,y+21,8,7,1,1,'F');
+    doc.roundedRect(dpeX+8,y-5,8,7,1,1,'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(8);
-    doc.text(d.pDpe||'?',margin+82,y+26,{align:'center'});
-    if(d.pExtras){doc.setTextColor(...muted);doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text('Autres: '+d.pExtras,margin+3,y+30);}
+    doc.text(d.pDpe||'?',dpeX+12,y,{align:'center'});
+    y+=6;
+    // Autres parties
+    if(d.pExtras) row('Autres parties', d.pExtras);
+    // Destination
+    if(d.pUsage) row('Destination', d.pUsage);
+    // TIC
+    if(d.pTic) row('Équipements TIC', d.pTic);
   } else {
-    doc.text('Place/Garage n° '+(d.pNumBox||'—'),margin+3,y+11);
+    row('Place/Garage n°', d.pNumBox||'—');
   }
-  y+=isP?18:36;
-  if(d.pUsage&&!isP){box("Destination: "+d.pUsage);}
+  y+=2;
 
   // III. DURÉE
   sec('III',"Date de prise d'effet et durée");
@@ -2182,18 +2211,6 @@ async function htmlToPdfBase64(htmlDoc, d, sealDate){
   checkPage(60);
   sec('—','Signatures des parties et scellement');
   
-  // Lu et approuvé
-  doc.setFillColor(248,249,252); doc.setDrawColor(...border);
-  doc.roundedRect(margin,y,col,22,1.5,1.5,'FD');
-  doc.setTextColor(...muted); doc.setFont('helvetica','normal'); doc.setFontSize(7);
-  doc.text('Mention à apposer de la main de chaque partie avant signature :',margin+3,y+5);
-  doc.setTextColor(...navy); doc.setFont('helvetica','italic'); doc.setFontSize(10);
-  doc.text('"Lu et approuvé — bon pour accord"',margin+3,y+12);
-  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...muted);
-  doc.text('Bailleur: '+(d.bNom||'—'),margin+3,y+19);
-  doc.text('Locataire: '+(d.lPrenom||'')+' '+(d.lNom||'—'),margin+col/2,y+19);
-  y+=26;
-
   // Lieu et date
   doc.setTextColor(...navy); doc.setFont('helvetica','normal'); doc.setFontSize(8);
   doc.text('Fait à '+(d.clLieu||'—')+', le '+fmtD(d.clDateSign||d.fDebut),margin,y);
