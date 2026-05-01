@@ -1060,24 +1060,60 @@ function renderSignature(){
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <div style="width:28px;height:28px;background:#22a05a;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">✍</div>
         <div>
-          <div style="font-family:'Playfair Display',serif;color:#fff;font-size:14px">Signature électronique légale via YouSign</div>
-          <div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:1px">Conforme loi n°2000-230 · OTP SMS · Horodatage certifié</div>
+          <div style="font-family:'Playfair Display',serif;color:#fff;font-size:14px">Signature électronique sécurisée — OTP SMS</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:1px">Conforme loi n°2000-230 · Code unique par SMS · Horodatage certifié</div>
         </div>
       </div>
-      <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:14px;line-height:1.5">Chaque partie reçoit un email avec un lien de signature sécurisé. Un code unique par SMS confirme leur identité.</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-        <div>
-          <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Téléphone bailleur</div>
-          <input id="ys-tel-b" type="tel" placeholder="+33612345678" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
+      <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:14px;line-height:1.5">Chaque partie reçoit un code unique par SMS pour confirmer son identité et signer le contrat.</div>
+
+      <!-- ÉTAPE 1 : Téléphones -->
+      <div id="otp-step1">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Téléphone bailleur</div>
+            <input id="ys-tel-b" type="tel" placeholder="+33612345678" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
+          </div>
+          <div>
+            <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Téléphone locataire</div>
+            <input id="ys-tel-l" type="tel" placeholder="+33612345678" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
+          </div>
         </div>
-        <div>
-          <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Téléphone locataire</div>
-          <input id="ys-tel-l" type="tel" placeholder="+33612345678" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
+        <button id="btn-yousign" onclick="sendToYousign()" style="width:100%;padding:11px;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;background:#22a05a;color:#fff;transition:all .15s">
+          Envoyer les codes SMS →
+        </button>
+      </div>
+
+      <!-- ÉTAPE 2 : Saisie des codes OTP -->
+      <div id="otp-step2" style="display:none">
+        <div style="font-size:11px;color:rgba(255,255,255,.7);margin-bottom:12px;padding:8px 10px;background:rgba(34,160,90,.15);border-radius:7px">
+          ✓ Codes SMS envoyés ! Chaque partie doit saisir le code reçu sur son téléphone.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div>
+            <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Code bailleur</div>
+            <div style="display:flex;gap:6px">
+              <input id="otp-code-b" type="text" maxlength="6" placeholder="123456" style="flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:16px;outline:none;letter-spacing:.2em;text-align:center">
+              <button onclick="verifyOTP('b')" style="padding:8px 12px;border-radius:7px;border:none;background:#22a05a;color:#fff;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer">OK</button>
+            </div>
+            <div id="otp-status-b" style="font-size:10px;margin-top:4px;min-height:14px"></div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Code locataire</div>
+            <div style="display:flex;gap:6px">
+              <input id="otp-code-l" type="text" maxlength="6" placeholder="123456" style="flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:16px;outline:none;letter-spacing:.2em;text-align:center">
+              <button onclick="verifyOTP('l')" style="padding:8px 12px;border-radius:7px;border:none;background:#22a05a;color:#fff;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer">OK</button>
+            </div>
+            <div id="otp-status-l" style="font-size:10px;margin-top:4px;min-height:14px"></div>
+          </div>
+        </div>
+        <button id="btn-seal" onclick="sealWithOTP()" disabled style="width:100%;padding:11px;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;background:#555;color:#fff;transition:all .15s">
+          Sceller le contrat (en attente des deux codes)
+        </button>
+        <div style="text-align:center;margin-top:8px">
+          <button onclick="document.getElementById('otp-step2').style.display='none';document.getElementById('otp-step1').style.display='block'" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif">← Recommencer</button>
         </div>
       </div>
-      <button id="btn-yousign" onclick="sendToYousign()" style="width:100%;padding:11px;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;background:#22a05a;color:#fff;transition:all .15s">
-        Envoyer pour signature via YouSign →
-      </button>
+
       <div id="ys-status" style="margin-top:10px;font-size:11px;text-align:center;min-height:16px;color:rgba(255,255,255,.6)"></div>
     </div>
 
@@ -1675,6 +1711,127 @@ ${box('<strong>Service gratuit pour les locataires :</strong> Transfert de l\'en
 </body></html>`;
 }
 
+
+// ═══════════════════════════════════════
+// OTP TWILIO VERIFY
+// ═══════════════════════════════════════
+const otpState = { b: false, l: false, telB: '', telL: '' };
+
+async function sendToYousign(){
+  const last = getLastContract();
+  const telB = document.getElementById('ys-tel-b').value.trim();
+  const telL = document.getElementById('ys-tel-l').value.trim();
+  const status = document.getElementById('ys-status');
+  const btn = document.getElementById('btn-yousign');
+
+  if(!telB||!telL){ status.style.color='#f09595'; status.textContent='Veuillez saisir les deux numéros de téléphone.'; return; }
+  if(!last.lEmail||!last.bEmail){ status.style.color='#f09595'; status.textContent='Email bailleur et locataire requis dans le contrat.'; return; }
+
+  btn.disabled=true; btn.textContent='Envoi des SMS…';
+  status.style.color='rgba(255,255,255,.6)'; status.textContent='';
+
+  try {
+    // Envoyer OTP au bailleur
+    const r1 = await fetch('/api/otp', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'send', phone: telB })
+    });
+    const d1 = await r1.json();
+    if(!d1.success) throw new Error('Bailleur: '+d1.error);
+
+    // Envoyer OTP au locataire
+    const r2 = await fetch('/api/otp', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'send', phone: telL })
+    });
+    const d2 = await r2.json();
+    if(!d2.success) throw new Error('Locataire: '+d2.error);
+
+    // Sauvegarder les tels pour la vérification
+    otpState.telB = telB;
+    otpState.telL = telL;
+    otpState.b = false;
+    otpState.l = false;
+
+    // Passer à l'étape 2
+    document.getElementById('otp-step1').style.display = 'none';
+    document.getElementById('otp-step2').style.display = 'block';
+    toast('Codes SMS envoyés aux deux parties !','green');
+
+  } catch(err) {
+    status.style.color='#f09595';
+    status.textContent='Erreur : '+err.message;
+    btn.disabled=false;
+    btn.textContent='Envoyer les codes SMS →';
+  }
+}
+
+async function verifyOTP(who){
+  const code = document.getElementById('otp-code-'+who).value.trim();
+  const statusEl = document.getElementById('otp-status-'+who);
+  const phone = who==='b' ? otpState.telB : otpState.telL;
+
+  if(!code||code.length!==6){ statusEl.style.color='#f09595'; statusEl.textContent='Code à 6 chiffres requis'; return; }
+  statusEl.style.color='rgba(255,255,255,.5)'; statusEl.textContent='Vérification…';
+
+  try {
+    const r = await fetch('/api/otp', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'verify', phone, code })
+    });
+    const d = await r.json();
+    if(d.verified){
+      otpState[who] = true;
+      statusEl.style.color='#22a05a';
+      statusEl.textContent='✓ Code validé';
+      document.getElementById('otp-code-'+who).style.borderColor='#22a05a';
+      // Vérifier si les deux sont validés
+      if(otpState.b && otpState.l){
+        const btn = document.getElementById('btn-seal');
+        btn.disabled = false;
+        btn.style.background = '#22a05a';
+        btn.textContent = 'Sceller le contrat définitivement →';
+      }
+    } else {
+      statusEl.style.color='#f09595';
+      statusEl.textContent='Code incorrect ou expiré';
+    }
+  } catch(err) {
+    statusEl.style.color='#f09595';
+    statusEl.textContent='Erreur: '+err.message;
+  }
+}
+
+async function sealWithOTP(){
+  if(!otpState.b||!otpState.l) return;
+  const btn = document.getElementById('btn-seal');
+  btn.disabled=true; btn.textContent='Scellement en cours…';
+
+  const now = new Date();
+  const sealDate = now.toLocaleDateString('fr-FR')+' à '+now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+
+  // Enregistrer dans le contrat
+  const contracts = getContracts();
+  const last = getLastContract();
+  const target = editId ? contracts.find(c=>c.id===editId) : contracts[contracts.length-1];
+  if(target){
+    target.otpSigned = true;
+    target.otpSealedAt = sealDate;
+    target.otpTelB = otpState.telB;
+    target.otpTelL = otpState.telL;
+    target.signed = true;
+    target.sealedAt = sealDate;
+    saveContracts(contracts);
+  }
+
+  btn.textContent='✓ Contrat scellé';
+  btn.style.background='#1a7a4a';
+  document.getElementById('ys-status').style.color='#22a05a';
+  document.getElementById('ys-status').textContent=`✓ Contrat signé et scellé le ${sealDate} — Les deux parties ont validé leur identité par SMS.`;
+  document.getElementById('sig-success').classList.add('show');
+  document.getElementById('seal-date-disp').textContent = sealDate;
+  toast('Contrat scellé avec succès !','green');
+}
 
 // ═══════════════════════════════════════
 // YOUSIGN
