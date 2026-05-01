@@ -1061,32 +1061,32 @@ function renderSignature(){
         <div style="width:28px;height:28px;background:#22a05a;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">✍</div>
         <div>
           <div style="font-family:'Playfair Display',serif;color:#fff;font-size:14px">Signature électronique sécurisée — OTP SMS</div>
-          <div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:1px">Conforme loi n°2000-230 · Code unique par SMS · Horodatage certifié</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:1px">Conforme loi n°2000-230 · Code unique par email · Horodatage certifié</div>
         </div>
       </div>
-      <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:14px;line-height:1.5">Chaque partie reçoit un code unique par SMS pour confirmer son identité et signer le contrat.</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:14px;line-height:1.5">Chaque partie reçoit un code unique par email pour confirmer son identité et signer le contrat.</div>
 
-      <!-- ÉTAPE 1 : Téléphones -->
+      <!-- ÉTAPE 1 : Emails -->
       <div id="otp-step1">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
           <div>
-            <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Téléphone bailleur</div>
-            <input id="ys-tel-b" type="tel" placeholder="+33612345678" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
+            <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Email bailleur</div>
+            <input id="ys-email-b" type="email" placeholder="bailleur@email.com" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
           </div>
           <div>
-            <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Téléphone locataire</div>
-            <input id="ys-tel-l" type="tel" placeholder="+33612345678" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
+            <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Email locataire</div>
+            <input id="ys-email-l" type="email" placeholder="locataire@email.com" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
           </div>
         </div>
         <button id="btn-yousign" onclick="sendToYousign()" style="width:100%;padding:11px;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;background:#22a05a;color:#fff;transition:all .15s">
-          Envoyer les codes SMS →
+          Envoyer les codes par email →
         </button>
       </div>
 
       <!-- ÉTAPE 2 : Saisie des codes OTP -->
       <div id="otp-step2" style="display:none">
         <div style="font-size:11px;color:rgba(255,255,255,.7);margin-bottom:12px;padding:8px 10px;background:rgba(34,160,90,.15);border-radius:7px">
-          ✓ Codes SMS envoyés ! Chaque partie doit saisir le code reçu sur son téléphone.
+          ✓ Codes envoyés par email ! Chaque partie doit saisir le code reçu dans sa boîte mail.
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
           <div>
@@ -1719,37 +1719,36 @@ const otpState = { b: false, l: false, telB: '', telL: '' };
 
 async function sendToYousign(){
   const last = getLastContract();
-  const telB = document.getElementById('ys-tel-b').value.trim();
-  const telL = document.getElementById('ys-tel-l').value.trim();
+  const emailB = document.getElementById('ys-email-b').value.trim() || last.bEmail;
+  const emailL = document.getElementById('ys-email-l').value.trim() || last.lEmail;
   const status = document.getElementById('ys-status');
   const btn = document.getElementById('btn-yousign');
 
-  if(!telB||!telL){ status.style.color='#f09595'; status.textContent='Veuillez saisir les deux numéros de téléphone.'; return; }
-  if(!last.lEmail||!last.bEmail){ status.style.color='#f09595'; status.textContent='Email bailleur et locataire requis dans le contrat.'; return; }
+  if(!emailB||!emailL){ status.style.color='#f09595'; status.textContent='Veuillez saisir les deux adresses email.'; return; }
 
-  btn.disabled=true; btn.textContent='Envoi des SMS…';
+  btn.disabled=true; btn.textContent='Envoi des codes…';
   status.style.color='rgba(255,255,255,.6)'; status.textContent='';
 
   try {
-    // Envoyer OTP au bailleur
+    // Envoyer OTP au bailleur par email
     const r1 = await fetch('/api/otp', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'send', phone: telB })
+      body: JSON.stringify({ action:'send', email: emailB, nom: last.bNom||'Bailleur', adresse: last.pAdresse||'Contrat' })
     });
     const d1 = await r1.json();
     if(!d1.success) throw new Error('Bailleur: '+d1.error);
 
-    // Envoyer OTP au locataire
+    // Envoyer OTP au locataire par email
     const r2 = await fetch('/api/otp', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'send', phone: telL })
+      body: JSON.stringify({ action:'send', email: emailL, nom: (last.lPrenom||'')+' '+(last.lNom||''), adresse: last.pAdresse||'Contrat' })
     });
     const d2 = await r2.json();
     if(!d2.success) throw new Error('Locataire: '+d2.error);
 
-    // Sauvegarder les tels pour la vérification
-    otpState.telB = telB;
-    otpState.telL = telL;
+    // Sauvegarder les emails pour la vérification
+    otpState.telB = emailB;
+    otpState.telL = emailL;
     otpState.b = false;
     otpState.l = false;
 
@@ -1769,7 +1768,7 @@ async function sendToYousign(){
 async function verifyOTP(who){
   const code = document.getElementById('otp-code-'+who).value.trim();
   const statusEl = document.getElementById('otp-status-'+who);
-  const phone = who==='b' ? otpState.telB : otpState.telL;
+  const email = who==='b' ? otpState.telB : otpState.telL;
 
   if(!code||code.length!==6){ statusEl.style.color='#f09595'; statusEl.textContent='Code à 6 chiffres requis'; return; }
   statusEl.style.color='rgba(255,255,255,.5)'; statusEl.textContent='Vérification…';
@@ -1777,7 +1776,7 @@ async function verifyOTP(who){
   try {
     const r = await fetch('/api/otp', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'verify', phone, code })
+      body: JSON.stringify({ action:'verify', email, code })
     });
     const d = await r.json();
     if(d.verified){
