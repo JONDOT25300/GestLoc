@@ -1227,40 +1227,48 @@ function setupSigCanvas(id){
   if(!canvas||!wrap) return;
   const hint = document.getElementById('hint-'+id);
   const confirmBtn = document.getElementById('btn-confirm-'+id);
+
+  const w = wrap.offsetWidth || 400;
+  canvas.width = w; canvas.height = 110;
+  canvas.style.cssText = 'display:block;width:'+w+'px;height:110px;cursor:crosshair;touch-action:none';
+
+  const ctx = canvas.getContext('2d');
   let drawing = false;
 
-  function getCtx(){
-    const ctx = canvas.getContext('2d');
-    ctx.strokeStyle = '#0f2545'; ctx.lineWidth = 2.2;
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    return ctx;
-  }
+  function applyStyle(){ ctx.strokeStyle='#0f2545'; ctx.lineWidth=2.2; ctx.lineCap='round'; ctx.lineJoin='round'; }
+  applyStyle();
 
-  function tryResize(attempt){
-    const w = wrap.getBoundingClientRect().width;
-    if(w < 10 && attempt < 20){ setTimeout(()=>tryResize(attempt+1), 50); return; }
-    canvas.width = w; canvas.height = 110;
-    canvas.style.width = w+'px'; canvas.style.height = '110px';
-    getCtx();
-  }
-  requestAnimationFrame(()=>tryResize(0));
-
-  function pos(e){
+  function getPos(e){
     const r = canvas.getBoundingClientRect();
-    if(e.touches) return {x:e.touches[0].clientX-r.left, y:e.touches[0].clientY-r.top};
-    return {x:e.clientX-r.left, y:e.clientY-r.top};
+    return e.touches
+      ? {x: e.touches[0].clientX-r.left, y: e.touches[0].clientY-r.top}
+      : {x: e.clientX-r.left, y: e.clientY-r.top};
   }
-  function start(e){ e.preventDefault(); if(sigData[id].done)return; drawing=true; hint.classList.add('hidden'); const p=pos(e); const ctx=getCtx(); ctx.beginPath(); ctx.moveTo(p.x,p.y); confirmBtn.disabled=false; }
-  function move(e){ e.preventDefault(); if(!drawing||sigData[id].done)return; const p=pos(e); const ctx=getCtx(); ctx.lineTo(p.x,p.y); ctx.stroke(); }
-  function end(e){ if(!drawing)return; e.preventDefault(); drawing=false; }
 
-  canvas.addEventListener('mousedown',start);
-  canvas.addEventListener('mousemove',move);
-  canvas.addEventListener('mouseup',end);
-  canvas.addEventListener('mouseleave',end);
-  canvas.addEventListener('touchstart',start,{passive:false});
-  canvas.addEventListener('touchmove',move,{passive:false});
-  canvas.addEventListener('touchend',end,{passive:false});
+  canvas.onpointerdown = function(e){
+    if(sigData[id].done) return;
+    e.preventDefault(); e.stopPropagation();
+    canvas.setPointerCapture(e.pointerId);
+    drawing = true;
+    applyStyle();
+    const p = getPos(e);
+    ctx.beginPath(); ctx.moveTo(p.x, p.y);
+    hint.classList.add('hidden');
+    confirmBtn.disabled = false;
+  };
+  canvas.onpointermove = function(e){
+    if(!drawing || sigData[id].done) return;
+    e.preventDefault(); e.stopPropagation();
+    applyStyle();
+    const p = getPos(e);
+    ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p.x, p.y);
+  };
+  canvas.onpointerup = function(e){
+    e.preventDefault();
+    drawing = false;
+    ctx.beginPath();
+  };
 }
 
 function clearSig(id){
@@ -1378,7 +1386,7 @@ function renderParaphe(){
             <div><div class="sig-name">${bName}</div><div class="sig-sub">Paraphe bailleur</div></div>
           </div>
         </div>
-        <div class="canvas-mini-wrap" id="wrap-pb">
+        <div class="canvas-wrap" id="wrap-pb" style="height:52px">
           <canvas id="canvas-pb" height="52"></canvas>
           <div class="hint-mini" id="hint-pb">Tracez votre paraphe</div>
         </div>
@@ -1395,7 +1403,7 @@ function renderParaphe(){
             <div><div class="sig-name">${lName.trim()||'Locataire'}</div><div class="sig-sub">Paraphe locataire</div></div>
           </div>
         </div>
-        <div class="canvas-mini-wrap" id="wrap-pl">
+        <div class="canvas-wrap" id="wrap-pl" style="height:52px">
           <canvas id="canvas-pl" height="52"></canvas>
           <div class="hint-mini" id="hint-pl">Tracez votre paraphe</div>
         </div>
@@ -1435,83 +1443,53 @@ function renderParaphe(){
 
 function setupPadCanvas(canvasId, dataKey){
   const canvas = document.getElementById(canvasId);
-  const wrap = document.getElementById('wrap-'+canvasId);
-  if(!canvas||!wrap) return;
+  if(!canvas) return;
+  const wrap = canvas.parentElement;
   const hint = document.getElementById('hint-'+canvasId);
   const okBtn = document.getElementById('ok-'+canvasId);
 
-  // Largeur fixe 300px — simple et fiable
-  canvas.width = 300;
+  const w = wrap.offsetWidth || 300;
+  canvas.width = w;
   canvas.height = 52;
-  canvas.style.width = '100%';
-  canvas.style.height = '52px';
+  canvas.style.cssText = 'display:block;width:'+w+'px;height:52px;cursor:crosshair;touch-action:none';
 
   const ctx = canvas.getContext('2d');
-  ctx.strokeStyle = '#0f2545';
-  ctx.lineWidth = 1.8;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
   let drawing = false;
-  let lastX = 0, lastY = 0;
 
-  function getXY(e){
+  function applyStyle(){ ctx.strokeStyle='#0f2545'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.lineJoin='round'; }
+  applyStyle();
+
+  function getPos(e){
     const r = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / r.width;
-    const scaleY = canvas.height / r.height;
-    if(e.touches){
-      return {
-        x: (e.touches[0].clientX - r.left) * scaleX,
-        y: (e.touches[0].clientY - r.top) * scaleY
-      };
-    }
-    return {
-      x: (e.clientX - r.left) * scaleX,
-      y: (e.clientY - r.top) * scaleY
-    };
+    return e.touches
+      ? {x: e.touches[0].clientX - r.left, y: e.touches[0].clientY - r.top}
+      : {x: e.clientX - r.left, y: e.clientY - r.top};
   }
 
-  function start(e){
-    e.preventDefault();
+  canvas.onpointerdown = function(e){
     if(padData[dataKey].done) return;
+    e.preventDefault(); e.stopPropagation();
+    canvas.setPointerCapture(e.pointerId);
     drawing = true;
-    const p = getXY(e);
-    lastX = p.x; lastY = p.y;
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    hint.classList.add('hidden');
-    okBtn.disabled = false;
-  }
-
-  function move(e){
-    e.preventDefault();
+    applyStyle();
+    const p = getPos(e);
+    ctx.beginPath(); ctx.moveTo(p.x, p.y);
+    if(hint) hint.style.display='none';
+    if(okBtn) okBtn.disabled=false;
+  };
+  canvas.onpointermove = function(e){
     if(!drawing || padData[dataKey].done) return;
-    const p = getXY(e);
-    ctx.strokeStyle = '#0f2545';
-    ctx.lineWidth = 1.8;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y);
-    lastX = p.x; lastY = p.y;
-  }
-
-  function end(e){
-    if(!drawing) return;
+    e.preventDefault(); e.stopPropagation();
+    applyStyle();
+    const p = getPos(e);
+    ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p.x, p.y);
+  };
+  canvas.onpointerup = function(e){
     e.preventDefault();
     drawing = false;
     ctx.beginPath();
-  }
-
-  canvas.addEventListener('mousedown', start);
-  canvas.addEventListener('mousemove', move);
-  canvas.addEventListener('mouseup', end);
-  canvas.addEventListener('mouseleave', end);
-  canvas.addEventListener('touchstart', start, {passive:false});
-  canvas.addEventListener('touchmove', move, {passive:false});
-  canvas.addEventListener('touchend', end, {passive:false});
+  };
 }
 
 function clearPad(cid){
