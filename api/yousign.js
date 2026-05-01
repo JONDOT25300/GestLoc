@@ -22,7 +22,8 @@ export default async function handler(req, res) {
       body: fd
     });
     const doc = await r1.json();
-    if (!r1.ok) throw new Error(JSON.stringify(doc));
+console.log('DOC RESPONSE:', JSON.stringify(doc));
+if (!r1.ok) throw new Error(JSON.stringify(doc));
 
     const r2 = await fetch(`${BASE}/signature_requests`, {
       method: 'POST',
@@ -31,7 +32,7 @@ export default async function handler(req, res) {
         name: 'Bail - ' + adresse,
         delivery_mode: 'email',
         timezone: 'Europe/Paris',
-        documents: [{ document_id: String(doc.id) }],
+        documents: [String(doc.id)],
         signers: [
           {
             info: { first_name: bailleur.prenom, last_name: bailleur.nom, email: bailleur.email, phone_number: bailleur.telephone, locale: 'fr' },
@@ -49,7 +50,8 @@ export default async function handler(req, res) {
       })
     });
     const sr = await r2.json();
-    if (!r2.ok) throw new Error(JSON.stringify(sr));
+console.log('SR RESPONSE:', JSON.stringify(sr));
+if (!r2.ok) throw new Error(JSON.stringify(sr));
 
     const r3 = await fetch(`${BASE}/signature_requests/${sr.id}/activate`, {
       method: 'POST',
