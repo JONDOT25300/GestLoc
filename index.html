@@ -1156,6 +1156,14 @@ function renderSignature(){
     <div class="success-card" id="sig-success">
       <div class="success-title">✓ Contrat signé et scellé</div>
       <div class="success-body">Le contrat a été enregistré avec les deux signatures le <strong id="seal-date-disp"></strong>.<br>Pensez à remettre un exemplaire signé à chaque partie. La notice d'information sur les droits et obligations doit être jointe.</div>
+      <div style="margin-top:14px;text-align:center">
+        <a id="drive-download-btn" href="#" target="_blank" style="display:none;background:#1a7a4a;color:#fff;padding:10px 22px;border-radius:9px;text-decoration:none;font-size:13px;font-weight:600;align-items:center;gap:7px">
+          ⬇ Télécharger le contrat PDF signé
+        </a>
+        <p id="drive-download-link-wrap" style="display:none;margin-top:8px;font-size:11px;color:#6b7a8d">
+          Lien permanent : <a id="drive-download-link" href="#" target="_blank" style="color:#0f2545;word-break:break-all"></a>
+        </p>
+      </div>
     </div>
   `;
 
@@ -1874,39 +1882,33 @@ async function sealWithOTP(){
     // Générer le PDF et uploader sur Google Drive
     btn.textContent = 'Génération du PDF...';
     const pdfBase64 = await htmlToPdfBase64(null, last, sealDate);
-    
-    btn.textContent = 'Upload sur Google Drive...';
-    const driveRes = await fetch('/api/drive', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        pdfBase64,
-        fileName: `Bail_${(last.lNom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')}_${new Date().toLocaleDateString('fr-FR').replace(/\//g,'-')}.pdf`
-      })
-    });
-    const driveData = await driveRes.json();
-    if(!driveData.success) throw new Error('Drive: '+driveData.error);
-    const fileUrl = driveData.fileUrl;
 
-    // Envoyer le lien par email aux deux parties
+    // Envoyer le PDF en pièce jointe par email aux deux parties
     btn.textContent = 'Envoi des emails...';
-    await fetch('/api/otp', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        action: 'sendContract',
-        emailB: otpState.telB,
-        emailL: otpState.telL,
-        nomB: last.bNom||'Bailleur',
-        nomL: (last.lPrenom||'')+' '+(last.lNom||'Locataire'),
-        adresse: last.pAdresse||'Contrat de location',
-        sealDate,
-        contractData: last,
-        fileUrl
-      })
-    });
-    toast('Contrat signé envoyé aux deux parties par email !','green');
+    try {
+      await fetch('/api/otp', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          action: 'sendContract',
+          emailB: otpState.telB,
+          emailL: otpState.telL,
+          nomB: last.bNom||'Bailleur',
+          nomL: (last.lPrenom||'')+' '+(last.lNom||'Locataire'),
+          adresse: last.pAdresse||'Contrat de location',
+          sealDate,
+          contractData: last,
+          pdfBase64
+        })
+      });
+      toast('Contrat signé envoyé aux deux parties par email !','green');
+    } catch(emailErr) {
+      console.error('Erreur envoi email:', emailErr);
+      toast('Erreur envoi email : ' + emailErr.message, 'red');
+    }
+
   } catch(e) {
     console.error('Erreur envoi contrat:', e);
-    toast('Contrat scellé — envoi email échoué','gold');
+    toast('Erreur : ' + e.message, 'red');
   }
 
   btn.textContent='✓ Contrat scellé et envoyé';

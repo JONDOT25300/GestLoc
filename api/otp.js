@@ -78,7 +78,7 @@ export default async function handler(req, res) {
 
     } else if (action === 'sendContract') {
       console.log('sendContract called');
-      const { fileUrl } = req.body;
+      const { fileUrl, pdfBase64 } = req.body;
       const d = contractData;
       if (!d) throw new Error('contractData manquant');
 
@@ -228,8 +228,14 @@ export default async function handler(req, res) {
       // ✅ FIX 3 : replace corrigé — cible </body></html> qui existe réellement dans le template
       const fullHtml = (dest) => contractHtml(dest).replace('</body></html>', driveLink + '</body></html>');
 
-      await sendEmail(emailB, nomB, `Contrat signe - ${adresse || 'Location'}`, fullHtml(nomB));
-      await sendEmail(emailL, nomL, `Contrat signe - ${adresse || 'Location'}`, fullHtml(nomL));
+      // Pièce jointe PDF si fournie
+      const attachment = pdfBase64 ? [{
+        name: `Contrat_${(d.lNom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')}_${new Date().toLocaleDateString('fr-FR').replace(/\//g,'-')}.pdf`,
+        content: pdfBase64
+      }] : undefined;
+
+      await sendEmail(emailB, nomB, `Contrat signe - ${adresse || 'Location'}`, fullHtml(nomB), attachment ? attachment[0] : undefined);
+      await sendEmail(emailL, nomL, `Contrat signe - ${adresse || 'Location'}`, fullHtml(nomL), attachment ? attachment[0] : undefined);
       console.log('Emails sent to', emailB, 'and', emailL);
       res.status(200).json({ success: true });
 
