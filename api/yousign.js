@@ -50,7 +50,8 @@ if (!r1.ok) throw new Error(JSON.stringify(doc));
       })
     });
     const sr = await r2.json();
-    if (!r2.ok) throw new Error(JSON.stringify(sr));
+console.log('SR RESPONSE:', JSON.stringify(sr));
+if (!r2.ok) throw new Error(JSON.stringify(sr));
 
     const r3 = await fetch(`${BASE}/signature_requests/${sr.id}/activate`, {
       method: 'POST',
