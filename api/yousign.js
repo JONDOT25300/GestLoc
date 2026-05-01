@@ -73,4 +73,40 @@ function makePDF(text) {
   });
 
   const pages = [];
-  for (let i = 0; i < lines.length; i += 45) page
+  for (let i = 0; i < lines.length; i += 45) pages.push(lines.slice(i, i + 45));
+
+  const objs = {};
+  const add = (id, s) => { objs[id] = s; };
+
+  add(1, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+
+  const pageIds = pages.map((pg, pi) => {
+    const sid = 10 + pi * 2;
+    const pid = 11 + pi * 2;
+    const stream = pg.map((l, i) => `BT /F1 10 Tf 40 ${800 - i * 16} Td (${esc(l)}) Tj ET`).join('\n');
+    add(sid, `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+    add(pid, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents ${sid} 0 R /Resources << /Font << /F1 1 0 R >> >> >>`);
+    return pid;
+  });
+
+  add(2, `<< /Type /Pages /Kids [${pageIds.map(i => i + ' 0 R').join(' ')}] /Count ${pageIds.length} >>`);
+  add(3, '<< /Type /Catalog /Pages 2 0 R >>');
+
+  let pdf = '%PDF-1.4\n';
+  const off = {};
+  Object.keys(objs).sort((a, b) => Number(a) - Number(b)).forEach(id => {
+    off[id] = pdf.length;
+    pdf += `${id} 0 obj\n${objs[id]}\nendobj\n`;
+  });
+
+  const xref = pdf.length;
+  const maxId = Math.max(...Object.keys(objs).map(Number));
+  pdf += `xref\n0 ${maxId + 1}\n0000000000 65535 f \n`;
+  for (let i = 1; i <= maxId; i++) {
+    pdf += off[i] !== undefined
+      ? `${String(off[i]).padStart(10, '0')} 00000 n \n`
+      : '0000000000 65535 f \n';
+  }
+  pdf += `trailer\n<< /Size ${maxId + 1} /Root 3 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return pdf;
+}
