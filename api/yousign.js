@@ -31,7 +31,7 @@ export default async function handler(req, res) {
         name: 'Bail - ' + adresse,
         delivery_mode: 'email',
         timezone: 'Europe/Paris',
-        documents: [{ document_id: doc.id }],
+        documents: [{ document_id: String(doc.id) }],
         signers: [
           {
             info: { first_name: bailleur.prenom, last_name: bailleur.nom, email: bailleur.email, phone_number: bailleur.telephone, locale: 'fr' },
