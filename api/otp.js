@@ -7,9 +7,16 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Methode non autorisee' });
 
+  // ✅ FIX 1 : vérification de la clé Brevo avant tout
   const BREVO_KEY = process.env.BREVO_API_KEY;
+  if (!BREVO_KEY) {
+    console.error('BREVO_API_KEY manquant dans les variables env Vercel');
+    return res.status(500).json({ error: 'Configuration serveur manquante : BREVO_API_KEY' });
+  }
+
   const { action, email, code, nom, adresse, emailB, emailL, nomB, nomL, sealDate, contractData } = req.body;
 
+  // ✅ FIX 2 : sendEmail robuste — lit le texte brut d'abord, puis parse en JSON
   const sendEmail = async (to, toName, subject, html, attachment) => {
     const body = {
       sender: { name: 'GestLoc', email: 'sci.18thaugust@gmail.com' },
@@ -18,13 +25,21 @@ export default async function handler(req, res) {
       htmlContent: html
     };
     if (attachment) body.attachment = [attachment];
+
     const r = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    const data = await r.json();
-    if (!r.ok) throw new Error(JSON.stringify(data));
+
+    const text = await r.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(`Brevo reponse non-JSON (status ${r.status}): ${text.slice(0, 300)}`);
+    }
+    if (!r.ok) throw new Error(`Brevo erreur: ${JSON.stringify(data)}`);
     return data;
   };
 
@@ -67,21 +82,21 @@ export default async function handler(req, res) {
       const d = contractData;
       if (!d) throw new Error('contractData manquant');
 
-      const loyer = parseFloat(d.fLoyer||0);
-      const charges = parseFloat(d.fCharges||0);
+      const loyer = parseFloat(d.fLoyer || 0);
+      const charges = parseFloat(d.fCharges || 0);
       const total = loyer + charges;
-      const fmtD = dt => { if(!dt) return '-'; try{ return new Date(dt).toLocaleDateString('fr-FR') } catch{ return dt } };
+      const fmtD = dt => { if (!dt) return '-'; try { return new Date(dt).toLocaleDateString('fr-FR') } catch { return dt } };
       const fmtE = v => v ? parseFloat(v).toLocaleString('fr-FR') + ' €' : '-';
       const isP = d.typeBien === 'parking';
 
       // Calcul première échéance
       let premiereEcheance = total;
       let labelEcheance = 'Mois complet';
-      if(d.fDebut){
+      if (d.fDebut) {
         const debut = new Date(d.fDebut);
         const jourDebut = debut.getDate();
-        const joursTotal = new Date(debut.getFullYear(), debut.getMonth()+1, 0).getDate();
-        if(jourDebut > 1){
+        const joursTotal = new Date(debut.getFullYear(), debut.getMonth() + 1, 0).getDate();
+        if (jourDebut > 1) {
           const joursR = joursTotal - jourDebut + 1;
           premiereEcheance = Math.round((total / joursTotal) * joursR * 100) / 100;
           labelEcheance = `Proratise ${joursR}j/${joursTotal}j`;
@@ -114,16 +129,16 @@ export default async function handler(req, res) {
       <tr>
         <td style="width:50%;padding:12px;background:#f8f9fc;border:1px solid #e0e8f0;border-radius:6px 0 0 6px;vertical-align:top">
           <div style="font-size:10px;color:#8a9ab5;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Bailleur</div>
-          <div style="font-size:14px;font-weight:bold;color:#0f2545">${d.bNom||'-'}</div>
-          <div style="font-size:12px;color:#5a6a80;margin-top:4px">${d.bAdresse||''}</div>
-          <div style="font-size:12px;color:#5a6a80">${d.bEmail||''}</div>
+          <div style="font-size:14px;font-weight:bold;color:#0f2545">${d.bNom || '-'}</div>
+          <div style="font-size:12px;color:#5a6a80;margin-top:4px">${d.bAdresse || ''}</div>
+          <div style="font-size:12px;color:#5a6a80">${d.bEmail || ''}</div>
         </td>
         <td style="width:50%;padding:12px;background:#f8f9fc;border:1px solid #e0e8f0;border-left:none;border-radius:0 6px 6px 0;vertical-align:top">
           <div style="font-size:10px;color:#8a9ab5;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Locataire</div>
-          <div style="font-size:14px;font-weight:bold;color:#0f2545">${(d.lPrenom||'')+' '+(d.lNom||'-')}</div>
+          <div style="font-size:14px;font-weight:bold;color:#0f2545">${(d.lPrenom || '') + ' ' + (d.lNom || '-')}</div>
           ${d.lNom2 ? `<div style="font-size:12px;color:#5a6a80">et ${d.lNom2}</div>` : ''}
-          <div style="font-size:12px;color:#5a6a80">${d.lEmail||''}</div>
-          ${d.lGarant||d.clGarant ? `<div style="font-size:11px;color:#8a9ab5;margin-top:4px">Garant: ${d.lGarant||d.clGarant}</div>` : ''}
+          <div style="font-size:12px;color:#5a6a80">${d.lEmail || ''}</div>
+          ${d.lGarant || d.clGarant ? `<div style="font-size:11px;color:#8a9ab5;margin-top:4px">Garant: ${d.lGarant || d.clGarant}</div>` : ''}
         </td>
       </tr>
     </table>
@@ -131,8 +146,8 @@ export default async function handler(req, res) {
     <!-- BIEN -->
     <div style="background:#f8f9fc;border:1px solid #e0e8f0;border-radius:6px;padding:14px;margin-bottom:16px">
       <div style="font-size:10px;color:#8a9ab5;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Bien loue</div>
-      <div style="font-size:14px;font-weight:bold;color:#0f2545;margin-bottom:4px">${d.pAdresse||'-'}</div>
-      ${!isP ? `<div style="font-size:12px;color:#5a6a80">${d.pType||''} ${d.fMeuble==='oui'?'meuble':'vide'} - ${d.pSurface||'-'} m2 - ${d.pPieces||'-'} pieces - DPE: ${d.pDpe||'-'}</div>` : `<div style="font-size:12px;color:#5a6a80">Place/Garage n ${d.pNumBox||'-'}</div>`}
+      <div style="font-size:14px;font-weight:bold;color:#0f2545;margin-bottom:4px">${d.pAdresse || '-'}</div>
+      ${!isP ? `<div style="font-size:12px;color:#5a6a80">${d.pType || ''} ${d.fMeuble === 'oui' ? 'meuble' : 'vide'} - ${d.pSurface || '-'} m2 - ${d.pPieces || '-'} pieces - DPE: ${d.pDpe || '-'}</div>` : `<div style="font-size:12px;color:#5a6a80">Place/Garage n ${d.pNumBox || '-'}</div>`}
     </div>
 
     <!-- FINANCES -->
@@ -166,11 +181,11 @@ export default async function handler(req, res) {
       <table style="width:100%">
         <tr>
           <td style="font-size:12px;color:#5a6a80">Debut</td><td style="font-size:13px;font-weight:bold;color:#0f2545">${fmtD(d.fDebut)}</td>
-          <td style="font-size:12px;color:#5a6a80">Duree</td><td style="font-size:13px;font-weight:bold;color:#0f2545">${d.fDuree||'-'}</td>
+          <td style="font-size:12px;color:#5a6a80">Duree</td><td style="font-size:13px;font-weight:bold;color:#0f2545">${d.fDuree || '-'}</td>
         </tr>
         <tr>
-          <td style="font-size:12px;color:#5a6a80;padding-top:6px">Depot garantie</td><td style="font-size:13px;font-weight:bold;color:#0f2545">${fmtE(d.clDepot||d.fDepot)}</td>
-          <td style="font-size:12px;color:#5a6a80;padding-top:6px">Paiement</td><td style="font-size:13px;font-weight:bold;color:#0f2545">${d.fPeriodicite||'Mensuel'} - ${d.fEcheance||'a echoir'}</td>
+          <td style="font-size:12px;color:#5a6a80;padding-top:6px">Depot garantie</td><td style="font-size:13px;font-weight:bold;color:#0f2545">${fmtE(d.clDepot || d.fDepot)}</td>
+          <td style="font-size:12px;color:#5a6a80;padding-top:6px">Paiement</td><td style="font-size:13px;font-weight:bold;color:#0f2545">${d.fPeriodicite || 'Mensuel'} - ${d.fEcheance || 'a echoir'}</td>
         </tr>
       </table>
     </div>
@@ -179,7 +194,7 @@ export default async function handler(req, res) {
 
     ${d.clParticulieres ? `<div style="background:#f0faf4;border:1px solid #a8dfc0;border-radius:6px;padding:14px;margin-bottom:16px"><div style="font-size:10px;color:#22a05a;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Conditions particulieres</div><div style="font-size:13px;color:#0f2545">${d.clParticulieres}</div></div>` : ''}
 
-    ${Array.isArray(d.clAnnexes) && d.clAnnexes.length ? `<div style="background:#f8f9fc;border:1px solid #e0e8f0;border-radius:6px;padding:14px;margin-bottom:16px"><div style="font-size:10px;color:#8a9ab5;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Annexes jointes</div>${d.clAnnexes.map(a=>`<div style="font-size:12px;color:#0f2545;padding:3px 0;border-bottom:1px solid #f0f0f0">&#9744; ${a}</div>`).join('')}</div>` : ''}
+    ${Array.isArray(d.clAnnexes) && d.clAnnexes.length ? `<div style="background:#f8f9fc;border:1px solid #e0e8f0;border-radius:6px;padding:14px;margin-bottom:16px"><div style="font-size:10px;color:#8a9ab5;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Annexes jointes</div>${d.clAnnexes.map(a => `<div style="font-size:12px;color:#0f2545;padding:3px 0;border-bottom:1px solid #f0f0f0">&#9744; ${a}</div>`).join('')}</div>` : ''}
 
     <!-- CLAUSES LÉGALES -->
     <div style="background:#fff8ee;border-left:3px solid #c8a84b;padding:12px 14px;border-radius:0 6px 6px 0;margin-bottom:16px">
@@ -194,10 +209,10 @@ export default async function handler(req, res) {
     <div style="background:#e8f5ee;border:2px solid #22a05a;border-radius:8px;padding:16px;margin-bottom:16px;text-align:center">
       <div style="font-size:14px;font-weight:bold;color:#22a05a;margin-bottom:8px">SIGNE ELECTRONIQUEMENT</div>
       <div style="font-size:12px;color:#2a7a4a;margin-bottom:4px">Scelle le ${sealDate}</div>
-      <div style="font-size:11px;color:#5a8a6a">Fait a ${d.clLieu||'-'}, le ${fmtD(d.clDateSign)}</div>
+      <div style="font-size:11px;color:#5a8a6a">Fait a ${d.clLieu || '-'}, le ${fmtD(d.clDateSign)}</div>
       <div style="display:flex;justify-content:space-around;margin-top:12px;padding-top:12px;border-top:1px solid #c0e8d0">
-        <div style="text-align:center"><div style="font-size:10px;color:#5a8a6a">Bailleur</div><div style="font-size:13px;font-weight:bold;color:#0f2545">${d.bNom||'-'}</div><div style="font-size:10px;color:#22a05a">&#10003; Valide par OTP</div></div>
-        <div style="text-align:center"><div style="font-size:10px;color:#5a8a6a">Locataire</div><div style="font-size:13px;font-weight:bold;color:#0f2545">${(d.lPrenom||'')+' '+(d.lNom||'-')}</div><div style="font-size:10px;color:#22a05a">&#10003; Valide par OTP</div></div>
+        <div style="text-align:center"><div style="font-size:10px;color:#5a8a6a">Bailleur</div><div style="font-size:13px;font-weight:bold;color:#0f2545">${d.bNom || '-'}</div><div style="font-size:10px;color:#22a05a">&#10003; Valide par OTP</div></div>
+        <div style="text-align:center"><div style="font-size:10px;color:#5a8a6a">Locataire</div><div style="font-size:13px;font-weight:bold;color:#0f2545">${(d.lPrenom || '') + ' ' + (d.lNom || '-')}</div><div style="font-size:10px;color:#22a05a">&#10003; Valide par OTP</div></div>
       </div>
     </div>
 
@@ -206,14 +221,15 @@ export default async function handler(req, res) {
 </div>
 </body></html>`;
 
-      const driveLink = fileUrl ? `<div style="text-align:center;margin:20px 0"><a href="${fileUrl}" style="background:#0f2545;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:bold">Télécharger le contrat PDF signé</a></div><p style="color:#5a6a80;font-size:12px;text-align:center">Lien permanent : <a href="${fileUrl}" style="color:#0f2545">${fileUrl}</a></p>` : '';
-      
-      const fullHtml = (dest) => contractHtml(dest).replace('</div>
-</body>', driveLink + '</div>
-</body>');
-      
-      await sendEmail(emailB, nomB, `Contrat signe - ${adresse||'Location'}`, fullHtml(nomB));
-      await sendEmail(emailL, nomL, `Contrat signe - ${adresse||'Location'}`, fullHtml(nomL));
+      const driveLink = fileUrl
+        ? `<div style="text-align:center;margin:20px 0"><a href="${fileUrl}" style="background:#0f2545;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:bold">Telecharger le contrat PDF signe</a></div><p style="color:#5a6a80;font-size:12px;text-align:center">Lien permanent : <a href="${fileUrl}" style="color:#0f2545">${fileUrl}</a></p>`
+        : '';
+
+      // ✅ FIX 3 : replace corrigé — cible </body></html> qui existe réellement dans le template
+      const fullHtml = (dest) => contractHtml(dest).replace('</body></html>', driveLink + '</body></html>');
+
+      await sendEmail(emailB, nomB, `Contrat signe - ${adresse || 'Location'}`, fullHtml(nomB));
+      await sendEmail(emailL, nomL, `Contrat signe - ${adresse || 'Location'}`, fullHtml(nomL));
       console.log('Emails sent to', emailB, 'and', emailL);
       res.status(200).json({ success: true });
 
