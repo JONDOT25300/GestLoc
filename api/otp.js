@@ -1,5 +1,3 @@
-const otpStore = new Map();
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -7,87 +5,118 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Methode non autorisee' });
 
-  const BREVO_KEY = process.env.BREVO_API_KEY;
-  const { action, email, code, nom, adresse, emailB, emailL, nomB, nomL, sealDate, pdfBase64 } = req.body;
-
-  const sendEmail = async (to, toName, subject, html, attachment) => {
-    const body = {
-      sender: { name: 'GestLoc', email: 'sci.18thaugust@gmail.com' },
-      to: [{ email: to, name: toName || to }],
-      subject,
-      htmlContent: html
-    };
-    if (attachment) {
-      body.attachment = [{ content: attachment, name: 'contrat-signe.pdf' }];
-    }
-    const r = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const data = await r.json();
-    if (!r.ok) throw new Error(JSON.stringify(data));
-    return data;
-  };
+  const CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL;
+  const PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
+  const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
   try {
-    if (action === 'send') {
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const expires = Date.now() + 10 * 60 * 1000;
-      otpStore.set(email, { otp, expires });
+    const { pdfBase64, fileName } = req.body;
+    if (!pdfBase64) throw new Error('pdfBase64 manquant');
 
-      const html = `<div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px">
-        <div style="background:#0f2545;padding:20px;border-radius:10px 10px 0 0;text-align:center">
-          <h1 style="color:#fff;font-size:22px;margin:0">GestLoc</h1>
-          <p style="color:rgba(255,255,255,.6);font-size:12px;margin:4px 0 0">Signature electronique securisee</p>
-        </div>
-        <div style="background:#f8f9fc;padding:24px;border-radius:0 0 10px 10px;border:1px solid #e0e8f0">
-          <p style="color:#0f2545;font-size:15px;margin:0 0 16px">Bonjour <strong>${nom || ''}</strong>,</p>
-          <p style="color:#5a6a80;font-size:13px;margin:0 0 20px">Vous etes invite(e) a signer le contrat de location :<br><strong style="color:#0f2545">${adresse || 'Contrat de location'}</strong></p>
-          <p style="color:#5a6a80;font-size:13px;margin:0 0 12px">Votre code de signature unique (valable 10 minutes) :</p>
-          <div style="background:#0f2545;border-radius:8px;padding:16px;text-align:center;margin:0 0 20px">
-            <span style="color:#fff;font-size:36px;font-weight:bold;letter-spacing:10px">${otp}</span>
-          </div>
-          <p style="color:#5a6a80;font-size:13px;margin:0 0 8px">Saisissez ce code dans l'application GestLoc pour confirmer votre identite et signer le contrat.</p>
-          <p style="color:#aab0bc;font-size:11px;margin:0">Code personnel et confidentiel. Signature conforme loi n°2000-230 du 13 mars 2000.</p>
-        </div>
-      </div>`;
+    // 1. Obtenir un token Google OAuth2
+    const token = await getGoogleToken(CLIENT_EMAIL, PRIVATE_KEY);
 
-      await sendEmail(email, nom, `Code de signature — ${adresse || 'Contrat'}`, html);
-      res.status(200).json({ success: true });
+    // 2. Upload du PDF sur Google Drive
+    const pdfBytes = Buffer.from(pdfBase64, 'base64');
+    const boundary = 'boundary_gestloc_' + Date.now();
+    const metadata = JSON.stringify({
+      name: fileName || 'contrat-signe.pdf',
+      parents: [FOLDER_ID],
+      mimeType: 'application/pdf'
+    });
 
-    } else if (action === 'verify') {
-      const stored = otpStore.get(email);
-      if (!stored) return res.status(200).json({ success: false, verified: false, message: 'Code expire ou inexistant' });
-      if (Date.now() > stored.expires) { otpStore.delete(email); return res.status(200).json({ success: false, verified: false, message: 'Code expire' }); }
-      if (stored.otp !== code) return res.status(200).json({ success: false, verified: false, message: 'Code incorrect' });
-      otpStore.delete(email);
-      res.status(200).json({ success: true, verified: true });
+    const body = [
+      `--${boundary}`,
+      'Content-Type: application/json; charset=UTF-8',
+      '',
+      metadata,
+      `--${boundary}`,
+      'Content-Type: application/pdf',
+      'Content-Transfer-Encoding: base64',
+      '',
+      pdfBase64,
+      `--${boundary}--`
+    ].join('\r\n');
 
-    } else if (action === 'sendContract') {
-      console.log('sendContract called, pdfSize:', pdfBase64 ? pdfBase64.length : 0);
-      const html = (destinataire) => `<div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px">
-        <div style="background:#0f2545;padding:20px;border-radius:10px 10px 0 0;text-align:center">
-          <h1 style="color:#fff;font-size:22px;margin:0">GestLoc</h1>
-        </div>
-        <div style="background:#f0faf4;padding:24px;border-radius:0 0 10px 10px;border:2px solid #22a05a">
-          <p style="color:#0f2545;font-size:15px;margin:0 0 12px">Bonjour <strong>${destinataire}</strong>,</p>
-          <p style="color:#22a05a;font-size:14px;font-weight:bold;margin:0 0 12px">✓ Votre contrat de location a été signé et scellé !</p>
-          <p style="color:#5a6a80;font-size:13px;margin:0 0 8px">Bien : <strong style="color:#0f2545">${adresse || 'Contrat de location'}</strong></p>
-          <p style="color:#5a6a80;font-size:13px;margin:0 0 16px">Scellé le : <strong style="color:#0f2545">${sealDate}</strong></p>
-          <p style="color:#5a6a80;font-size:12px;margin:0">Le contrat signé est joint en pièce jointe PDF. Conservez-le précieusement.<br>
-          Signature électronique conforme loi n°2000-230 du 13 mars 2000.</p>
-        </div>
-      </div>`;
+    const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': `multipart/related; boundary=${boundary}`,
+        'Content-Length': Buffer.byteLength(body)
+      },
+      body
+    });
 
-      await sendEmail(emailB, nomB, `Contrat signé — ${adresse || 'Contrat de location'}`, html(nomB), pdfBase64);
-      await sendEmail(emailL, nomL, `Contrat signé — ${adresse || 'Contrat de location'}`, html(nomL), pdfBase64);
-      res.status(200).json({ success: true });
+    const fileData = await uploadRes.json();
+    if (!uploadRes.ok) throw new Error(`Upload Drive: ${JSON.stringify(fileData)}`);
 
-    } else {
-      res.status(400).json({ error: 'Action invalide' });
-    }
+    // 3. Rendre le fichier accessible en lecture seule (anyone with link)
+    await fetch(`https://www.googleapis.com/drive/v3/files/${fileData.id}/permissions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ role: 'reader', type: 'anyone' })
+    });
+
+    const fileUrl = `https://drive.google.com/file/d/${fileData.id}/view`;
+    console.log('PDF uploaded to Drive:', fileUrl);
+
+    res.status(200).json({ success: true, fileUrl, fileId: fileData.id });
+
   } catch (e) {
+    console.error('Drive error:', e.message);
     res.status(500).json({ error: e.message });
   }
+}
+
+async function getGoogleToken(clientEmail, privateKey) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const payload = btoa(JSON.stringify({
+    iss: clientEmail,
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now
+  }));
+
+  const signingInput = `${header}.${payload}`;
+
+  // Import private key
+  const keyData = privateKey
+    .replace('-----BEGIN PRIVATE KEY-----', '')
+    .replace('-----END PRIVATE KEY-----', '')
+    .replace(/\s/g, '');
+
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8',
+    Buffer.from(keyData, 'base64'),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    cryptoKey,
+    Buffer.from(signingInput)
+  );
+
+  const jwt = `${signingInput}.${Buffer.from(signature).toString('base64url')}`;
+
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt
+    })
+  });
+
+  const tokenData = await tokenRes.json();
+  if (!tokenRes.ok) throw new Error(`Token error: ${JSON.stringify(tokenData)}`);
+  return tokenData.access_token;
 }
