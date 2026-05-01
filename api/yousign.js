@@ -9,11 +9,11 @@ export default async function handler(req, res) {
   const BASE = 'https://api-sandbox.yousign.app/v3';
 
   try {
-    const { contractText, bailleur, locataire, adresse } = req.body;
-    const pdf = makePDF(contractText || 'Contrat');
+    const { pdfBase64, bailleur, locataire, adresse } = req.body;
+    const pdfBytes = Buffer.from(pdfBase64, 'base64');
 
     const fd = new FormData();
-    fd.append('file', new Blob([pdf], { type: 'application/pdf' }), 'contrat.pdf');
+    fd.append('file', new Blob([pdfBytes], { type: 'application/pdf' }), 'contrat.pdf');
     fd.append('nature', 'signable_document');
 
     const r1 = await fetch(`${BASE}/documents`, {
