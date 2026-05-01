@@ -32,7 +32,7 @@ if (!r1.ok) throw new Error(JSON.stringify(doc));
         name: 'Bail - ' + adresse,
         delivery_mode: 'email',
         timezone: 'Europe/Paris',
-        documents: [{ document_id: String(doc.id) }],
+        documents: [String(doc.id)],
         signers: [
           {
             info: { first_name: bailleur.prenom, last_name: bailleur.nom, email: bailleur.email, phone_number: bailleur.telephone, locale: 'fr' },
