@@ -1835,7 +1835,16 @@ async function sealWithOTP(){
       });
     }
     // Générer le PDF (réutilise la logique existante)
-    const pdfBase64 = await generateSignedPDF(last, sealDate);
+    // Générer le PDF complet professionnel
+    const { jsPDF } = window.jspdf;
+    const signedSigs = {
+      b: { done: true, data: null, ts: sealDate },
+      l: { done: true, data: null, ts: sealDate }
+    };
+    const htmlDoc = buildProfessionalPDF(last, signedSigs, padData, printOpts);
+    
+    // Convertir le HTML en PDF via une iframe cachée puis jsPDF
+    const pdfBase64 = await htmlToPdfBase64(htmlDoc, last, sealDate);
 
     // Envoyer aux deux parties
     await fetch('/api/otp', {
@@ -1865,106 +1874,168 @@ async function sealWithOTP(){
   document.getElementById('seal-date-disp').textContent = sealDate;
 }
 
-async function generateSignedPDF(last, sealDate){
+async function htmlToPdfBase64(htmlDoc, d, sealDate){
+  // Utilise jsPDF pour générer un PDF propre avec toutes les infos du contrat
   const { jsPDF } = window.jspdf;
-  const doc2 = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
   const navy = [15,37,69]; const muted = [107,122,141]; const green = [34,160,90];
   const W = 210; const margin = 14; const col = W-margin*2;
   let y = 15;
-
-  const isP = last.typeBien==='parking';
-  const loyer = parseFloat(last.fLoyer||0);
-  const charges = parseFloat(last.fCharges||0);
+  const isP = d.typeBien==='parking';
+  const loyer = parseFloat(d.fLoyer||0);
+  const charges = parseFloat(d.fCharges||0);
   const total = loyer+charges;
   const fmtD = dt => { if(!dt)return '—'; try{return new Date(dt).toLocaleDateString('fr-FR')}catch{return dt} };
   const fmtE = v => v ? parseFloat(v).toLocaleString('fr-FR')+' €' : '—';
 
-  // En-tête
-  doc2.setFillColor(...navy);
-  doc2.rect(margin, y, col, 18, 'F');
-  doc2.setTextColor(255,255,255);
-  doc2.setFont('helvetica','bold'); doc2.setFontSize(16);
-  doc2.text('GestLoc', margin+4, y+7);
-  doc2.setFont('helvetica','normal'); doc2.setFontSize(7);
-  doc2.text('Contrat de location · Loi du 6 juillet 1989', margin+4, y+12);
-  doc2.setFont('helvetica','bold'); doc2.setFontSize(8);
-  doc2.text(isP?'Bail parking':last.fMeuble==='oui'?'Location meublée':'Location vide', W-margin-4, y+7, {align:'right'});
-  doc2.setFont('helvetica','normal'); doc2.setFontSize(7);
-  doc2.text('Réf. GL-'+String(last.id||Date.now()).slice(-6), W-margin-4, y+12, {align:'right'});
+  const addSection = (code, title, color) => {
+    color = color || navy;
+    doc.setFillColor(238,243,251); doc.rect(margin, y, col, 7, 'F');
+    doc.setFillColor(...color); doc.rect(margin, y, 7, 7, 'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+    doc.text(code, margin+3.5, y+4.5, {align:'center'});
+    doc.setTextColor(...color); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    doc.text(title, margin+10, y+4.8);
+    y += 10;
+  };
+
+  const fieldRow = (label, value, col2) => {
+    if(!value || value==='—') return;
+    doc.setTextColor(...muted); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+    doc.text(label, col2 ? margin+col/2+3 : margin+2, y);
+    doc.setTextColor(...navy); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    doc.text(String(value), col2 ? margin+col/2+45 : margin+52, y);
+    y += 5;
+  };
+
+  // EN-TÊTE
+  doc.setFillColor(...navy); doc.rect(margin, y, col, 18, 'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(16);
+  doc.text('GestLoc', margin+4, y+7);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7);
+  doc.text('Contrat de location · Loi du 6 juillet 1989 · Décret 29 mai 2015', margin+4, y+12);
+  doc.setFont('helvetica','bold'); doc.setFontSize(8);
+  doc.text(isP?'Bail parking/garage':d.fMeuble==='oui'?'Location meublée':'Location vide', W-margin-4, y+7, {align:'right'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(7);
+  doc.text('Réf. GL-'+String(d.id||Date.now()).slice(-6)+' · '+new Date().toLocaleDateString('fr-FR'), W-margin-4, y+12, {align:'right'});
   y += 22;
 
-  // Parties
-  doc2.setFillColor(238,243,251); doc2.rect(margin, y, col, 7, 'F');
-  doc2.setFillColor(...navy); doc2.rect(margin, y, 7, 7, 'F');
-  doc2.setTextColor(255,255,255); doc2.setFont('helvetica','bold'); doc2.setFontSize(7);
-  doc2.text('I', margin+3.5, y+4.5, {align:'center'});
-  doc2.setTextColor(...navy); doc2.setFont('helvetica','bold'); doc2.setFontSize(9);
-  doc2.text('Désignation des parties', margin+10, y+4.8);
-  y += 10;
+  // I. PARTIES
+  addSection('I', 'Désignation des parties');
+  doc.setFillColor(250,252,255); doc.setDrawColor(208,220,232);
+  doc.roundedRect(margin, y, col/2-2, 32, 2, 2, 'FD');
+  doc.roundedRect(margin+col/2+2, y, col/2-2, 32, 2, 2, 'FD');
+  doc.setTextColor(...muted); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
+  doc.text('BAILLEUR', margin+3, y+4); doc.text('LOCATAIRE', margin+col/2+5, y+4);
+  doc.setTextColor(...navy); doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text(d.bNom||'—', margin+3, y+9);
+  doc.text((d.lPrenom||'')+' '+(d.lNom||'—'), margin+col/2+5, y+9);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...muted);
+  if(d.bAdresse){ const lines = doc.splitTextToSize(d.bAdresse, col/2-8); doc.text(lines, margin+3, y+14); }
+  if(d.bEmail) doc.text(d.bEmail, margin+3, y+22);
+  if(d.lEmail) doc.text(d.lEmail, margin+col/2+5, y+14);
+  if(d.lNom2) doc.text('2e loc: '+d.lNom2, margin+col/2+5, y+19);
+  if(d.lGarant||d.clGarant) doc.text('Garant: '+(d.lGarant||d.clGarant), margin+col/2+5, y+24);
+  y += 37;
 
-  doc2.setFillColor(250,252,255); doc2.setDrawColor(208,220,232);
-  doc2.roundedRect(margin, y, col/2-2, 28, 2, 2, 'FD');
-  doc2.roundedRect(margin+col/2+2, y, col/2-2, 28, 2, 2, 'FD');
-  doc2.setTextColor(...muted); doc2.setFont('helvetica','bold'); doc2.setFontSize(6.5);
-  doc2.text('BAILLEUR', margin+3, y+4);
-  doc2.text('LOCATAIRE', margin+col/2+5, y+4);
-  doc2.setTextColor(...navy); doc2.setFont('helvetica','bold'); doc2.setFontSize(9);
-  doc2.text(last.bNom||'—', margin+3, y+9);
-  doc2.text((last.lPrenom||'')+' '+(last.lNom||'—'), margin+col/2+5, y+9);
-  doc2.setFont('helvetica','normal'); doc2.setFontSize(7); doc2.setTextColor(...muted);
-  if(last.bEmail) doc2.text(last.bEmail, margin+3, y+14);
-  if(last.lEmail) doc2.text(last.lEmail, margin+col/2+5, y+14);
-  y += 33;
+  // II. BIEN
+  addSection('II', 'Objet du contrat');
+  doc.setFillColor(248,246,240); doc.setDrawColor(208,220,232);
+  doc.roundedRect(margin, y, col, 24, 2, 2, 'FD');
+  doc.setTextColor(...navy); doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
+  doc.text(d.pAdresse||'—', margin+3, y+6);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...muted);
+  if(!isP){
+    doc.text(`Type: ${d.pType||''} ${d.fMeuble==='oui'?'meublé':'vide'} · Surface: ${d.pSurface||'—'} m² · Pièces: ${d.pPieces||'—'}`, margin+3, y+12);
+    doc.text(`Habitat: ${d.pHabitat||'—'} · Régime: ${d.pRegime||'—'} · DPE: ${d.pDpe||'—'} · Chauffage: ${d.pChauffage||'—'}`, margin+3, y+18);
+  } else {
+    doc.text(`Place/Garage n° ${d.pNumBox||'—'}`, margin+3, y+12);
+  }
+  y += 29;
 
-  // Bien et finances
-  doc2.setFillColor(248,246,240); doc2.setDrawColor(208,220,232);
-  doc2.roundedRect(margin, y, col, 20, 2, 2, 'FD');
-  doc2.setTextColor(...navy); doc2.setFont('helvetica','bold'); doc2.setFontSize(8.5);
-  doc2.text(last.pAdresse||'—', margin+3, y+6);
-  doc2.setFont('helvetica','normal'); doc2.setFontSize(7); doc2.setTextColor(...muted);
-  if(!isP) doc2.text(`${last.pType||''} ${last.fMeuble==='oui'?'meublé':'vide'} · ${last.pSurface||'—'} m² · DPE: ${last.pDpe||'—'}`, margin+3, y+12);
-  else doc2.text(`Place/Garage n° ${last.pNumBox||'—'}`, margin+3, y+12);
-  y += 25;
+  // III & IV. DURÉE & FINANCES
+  addSection('III/IV', 'Durée et conditions financières');
+  doc.setFillColor(240,244,251); doc.roundedRect(margin, y, col/3-2, 16, 2, 2, 'F');
+  doc.roundedRect(margin+col/3+1, y, col/3-2, 16, 2, 2, 'F');
+  doc.setFillColor(...navy); doc.roundedRect(margin+2*col/3+2, y, col/3-2, 16, 2, 2, 'F');
+  doc.setTextColor(...muted); doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+  doc.text('LOYER HC', margin+col/6, y+4, {align:'center'});
+  doc.text('CHARGES', margin+col/6+col/3+1, y+4, {align:'center'});
+  doc.setTextColor(255,255,255); doc.text('TOTAL MENSUEL', margin+col/6+2*col/3+2, y+4, {align:'center'});
+  doc.setTextColor(...navy); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+  doc.text(fmtE(d.fLoyer), margin+col/6, y+11, {align:'center'});
+  doc.text(fmtE(d.fCharges), margin+col/6+col/3+1, y+11, {align:'center'});
+  doc.setTextColor(255,255,255); doc.text(total.toLocaleString('fr-FR')+' €', margin+col/6+2*col/3+2, y+11, {align:'center'});
+  y += 20;
+  doc.setFillColor(250,252,255); doc.setDrawColor(208,220,232);
+  doc.roundedRect(margin, y, col, 18, 2, 2, 'FD');
+  doc.setTextColor(...navy); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+  doc.text(`Début: ${fmtD(d.fDebut)} · Durée: ${d.fDuree||'—'} · Paiement: ${d.fPeriodicite||'Mensuel'} ${d.fEcheance||'à échoir'}`, margin+3, y+6);
+  doc.text(`Date paiement: ${d.fDatePaiement||'—'} · Dépôt garantie: ${fmtE(d.clDepot||d.fDepot)}`, margin+3, y+12);
+  y += 23;
 
-  // Finances
-  doc2.setFillColor(240,244,251); doc2.roundedRect(margin, y, col/3-2, 14, 2, 2, 'F');
-  doc2.roundedRect(margin+col/3+1, y, col/3-2, 14, 2, 2, 'F');
-  doc2.setFillColor(...navy); doc2.roundedRect(margin+2*col/3+2, y, col/3-2, 14, 2, 2, 'F');
-  doc2.setTextColor(...muted); doc2.setFont('helvetica','normal'); doc2.setFontSize(6);
-  doc2.text('LOYER HC', margin+col/6, y+4, {align:'center'});
-  doc2.text('CHARGES', margin+col/6+col/3+1, y+4, {align:'center'});
-  doc2.setTextColor(255,255,255); doc2.text('TOTAL MENSUEL', margin+col/6+2*col/3+2, y+4, {align:'center'});
-  doc2.setTextColor(...navy); doc2.setFont('helvetica','bold'); doc2.setFontSize(10);
-  doc2.text(fmtE(last.fLoyer), margin+col/6, y+10, {align:'center'});
-  doc2.text(fmtE(last.fCharges), margin+col/6+col/3+1, y+10, {align:'center'});
-  doc2.setTextColor(255,255,255); doc2.text(total.toLocaleString('fr-FR')+' €', margin+col/6+2*col/3+2, y+10, {align:'center'});
-  y += 18;
+  // V-VIII CLAUSES
+  addSection('V-VIII', 'Clauses légales');
+  const clauses = [
+    'Solidarité et indivisibilité entre colocataires pour toutes les obligations du présent contrat.',
+    'Clause résolutoire: défaut loyer/charges · défaut dépôt garantie · défaut assurance · trouble voisinage.',
+    d.clTravaux ? 'Travaux: '+d.clTravaux : 'Travaux: Néant.'
+  ];
+  if(d.clParticulieres) clauses.push('Conditions particulières: '+d.clParticulieres);
+  clauses.forEach(cl => {
+    doc.setFillColor(244,246,251); doc.rect(margin, y, 2, 5, 'F');
+    doc.setFillColor(244,246,251); doc.rect(margin+2, y, col-2, 5, 'F');
+    doc.setTextColor(...navy); doc.setFont('helvetica','normal'); doc.setFontSize(7);
+    const lines = doc.splitTextToSize(cl, col-6);
+    doc.text(lines, margin+4, y+3.5);
+    y += lines.length > 1 ? lines.length*4+2 : 7;
+  });
+  y += 3;
 
-  doc2.setTextColor(...navy); doc2.setFont('helvetica','normal'); doc2.setFontSize(7.5);
-  doc2.text(`Début: ${fmtD(last.fDebut)} · Durée: ${last.fDuree||'—'} · Dépôt: ${fmtE(last.clDepot||last.fDepot)}`, margin, y);
-  y += 10;
+  // ANNEXES
+  if(Array.isArray(d.clAnnexes) && d.clAnnexes.length){
+    addSection('XI', 'Annexes');
+    d.clAnnexes.forEach(a => {
+      doc.setDrawColor(208,220,232); doc.rect(margin+2, y, 4, 4);
+      doc.setTextColor(...navy); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+      doc.text(a, margin+8, y+3.2);
+      y += 6;
+    });
+    y += 3;
+  }
 
-  // Bloc signature scellé
-  doc2.setFillColor(232,245,238); doc2.setDrawColor(...green);
-  doc2.roundedRect(margin, y, col, 35, 2, 2, 'FD');
-  doc2.setTextColor(...green); doc2.setFont('helvetica','bold'); doc2.setFontSize(11);
-  doc2.text('✓ CONTRAT SIGNÉ ÉLECTRONIQUEMENT', margin+col/2, y+8, {align:'center'});
-  doc2.setFont('helvetica','normal'); doc2.setFontSize(8); doc2.setTextColor(42,122,74);
-  doc2.text(`Scellé le ${sealDate}`, margin+col/2, y+15, {align:'center'});
-  doc2.text('Conforme loi n°2000-230 du 13 mars 2000 · Code OTP email · Horodatage certifié', margin+col/2, y+21, {align:'center'});
-  doc2.setDrawColor(...navy); doc2.setFontSize(7); doc2.setTextColor(...muted);
-  doc2.text(`Bailleur: ${last.bNom||'—'} — ${otpState.telB}`, margin+3, y+28);
-  doc2.text(`Locataire: ${(last.lPrenom||'')+' '+(last.lNom||'—')} — ${otpState.telL}`, margin+3, y+33);
-  y += 40;
+  // NOUVELLE PAGE si nécessaire
+  if(y > 230){ doc.addPage(); y = 15; }
 
-  // Footer
-  doc2.setFillColor(240,244,251); doc2.rect(0, 285, 210, 12, 'F');
-  doc2.setTextColor(...muted); doc2.setFont('helvetica','normal'); doc2.setFontSize(6.5);
-  doc2.text('GestLoc · Loi du 6 juillet 1989 · Décret du 29 mai 2015', margin, 291);
-  doc2.text('Document officiel — Ne pas modifier', W-margin, 291, {align:'right'});
+  // BLOC SIGNATURE SCELLÉ
+  doc.setFillColor(232,245,238); doc.setDrawColor(...green);
+  doc.roundedRect(margin, y, col, 40, 2, 2, 'FD');
+  doc.setTextColor(...green); doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  doc.text('✓ CONTRAT SIGNÉ ÉLECTRONIQUEMENT', margin+col/2, y+9, {align:'center'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(42,122,74);
+  doc.text(`Scellé le ${sealDate}`, margin+col/2, y+17, {align:'center'});
+  doc.setFontSize(7.5);
+  doc.text('Conforme loi n°2000-230 du 13 mars 2000 · Code OTP par email · Horodatage certifié', margin+col/2, y+23, {align:'center'});
+  doc.setDrawColor(180,220,200); doc.line(margin+4, y+28, margin+col-4, y+28);
+  doc.setTextColor(...muted); doc.setFontSize(7);
+  doc.text(`Bailleur: ${d.bNom||'—'}`, margin+4, y+33);
+  doc.text(`Locataire: ${(d.lPrenom||'')+' '+(d.lNom||'—')}`, margin+col/2, y+33);
+  doc.text(`Fait à ${d.clLieu||'—'}, le ${fmtD(d.clDateSign)}`, margin+4, y+38);
+  y += 45;
 
-  return doc2.output('datauristring').split(',')[1];
+  // FOOTER sur toutes les pages
+  const pages = doc.internal.getNumberOfPages();
+  for(let i=1;i<=pages;i++){
+    doc.setPage(i);
+    doc.setFillColor(240,244,251); doc.rect(0, 285, 210, 12, 'F');
+    doc.setTextColor(...muted); doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+    doc.text('GestLoc · Loi du 6 juillet 1989 · Décret du 29 mai 2015 · Document officiel', margin, 291);
+    doc.text(`Page ${i} sur ${pages}`, W-margin, 291, {align:'right'});
+  }
+
+  return doc.output('datauristring').split(',')[1];
 }
+
 
 // ═══════════════════════════════════════
 // YOUSIGN
