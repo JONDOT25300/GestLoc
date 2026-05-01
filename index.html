@@ -1870,18 +1870,24 @@ async function sealWithOTP(){
       });
     }
     // Générer le PDF (réutilise la logique existante)
-    // Générer le PDF complet professionnel
-    const { jsPDF } = window.jspdf;
-    const signedSigs = {
-      b: { done: true, data: null, ts: sealDate },
-      l: { done: true, data: null, ts: sealDate }
-    };
-    const htmlDoc = buildProfessionalPDF(last, signedSigs, padData, printOpts);
+    // Générer le PDF et uploader sur Google Drive
+    btn.textContent = 'Génération du PDF...';
+    const pdfBase64 = await htmlToPdfBase64(null, last, sealDate);
     
-    // Convertir le HTML en PDF via une iframe cachée puis jsPDF
-    const pdfBase64 = await htmlToPdfBase64(htmlDoc, last, sealDate);
+    btn.textContent = 'Upload sur Google Drive...';
+    const driveRes = await fetch('/api/drive', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        pdfBase64,
+        fileName: `Bail_${(last.lNom||'locataire').replace(/[^a-zA-Z0-9]/g,'_')}_${new Date().toLocaleDateString('fr-FR').replace(/\//g,'-')}.pdf`
+      })
+    });
+    const driveData = await driveRes.json();
+    if(!driveData.success) throw new Error('Drive: '+driveData.error);
+    const fileUrl = driveData.fileUrl;
 
-    // Envoyer aux deux parties
+    // Envoyer le lien par email aux deux parties
+    btn.textContent = 'Envoi des emails...';
     await fetch('/api/otp', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
@@ -1892,7 +1898,8 @@ async function sealWithOTP(){
         nomL: (last.lPrenom||'')+' '+(last.lNom||'Locataire'),
         adresse: last.pAdresse||'Contrat de location',
         sealDate,
-        pdfBase64
+        contractData: last,
+        fileUrl
       })
     });
     toast('Contrat signé envoyé aux deux parties par email !','green');
