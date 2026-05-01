@@ -5,6 +5,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Methode non autorisee' });
 
+  
   const CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL;
   const PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
   const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
