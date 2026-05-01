@@ -65,6 +65,7 @@ export default async function handler(req, res) {
       res.status(200).json({ success: true, verified: true });
 
     } else if (action === 'sendContract') {
+      console.log('sendContract called, pdfSize:', pdfBase64 ? pdfBase64.length : 0);
       const html = (destinataire) => `<div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px">
         <div style="background:#0f2545;padding:20px;border-radius:10px 10px 0 0;text-align:center">
           <h1 style="color:#fff;font-size:22px;margin:0">GestLoc</h1>
