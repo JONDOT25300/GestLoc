@@ -1694,13 +1694,12 @@ async function sendToYousign(){
 
   try {
     const contractText = buildContractText(last);
-    const pdfBase64 = btoa(unescape(encodeURIComponent(contractText)));
 
     const response = await fetch('/api/yousign', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
-        pdfBase64,
+        contractText,
         adresse: last.pAdresse||'Contrat de location',
         bailleur: {
           prenom: last.bNom?.split(' ')[0]||'Bailleur',
