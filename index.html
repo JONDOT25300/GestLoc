@@ -1245,10 +1245,14 @@ function setupSigCanvas(id){
       : {x: e.clientX-r.left, y: e.clientY-r.top};
   }
 
+  // Bloquer le scroll du conteneur pendant le dessin
+  const scrollParent = document.getElementById('sig-body');
+
   canvas.onpointerdown = function(e){
     if(sigData[id].done) return;
     e.preventDefault(); e.stopPropagation();
     canvas.setPointerCapture(e.pointerId);
+    if(scrollParent) scrollParent.style.overflowY = 'hidden';
     drawing = true;
     applyStyle();
     const p = getPos(e);
@@ -1268,6 +1272,7 @@ function setupSigCanvas(id){
     e.preventDefault();
     drawing = false;
     ctx.beginPath();
+    if(scrollParent) scrollParent.style.overflowY = 'auto';
   };
 }
 
@@ -1468,10 +1473,13 @@ function setupPadCanvas(canvasId, dataKey){
       : {x: e.clientX - r.left, y: e.clientY - r.top};
   }
 
+  const scrollParent = document.getElementById('paraphe-body');
+
   canvas.onpointerdown = function(e){
     if(padData[dataKey].done) return;
     e.preventDefault(); e.stopPropagation();
     canvas.setPointerCapture(e.pointerId);
+    if(scrollParent) scrollParent.style.overflowY = 'hidden';
     drawing = true;
     applyStyle();
     const p = getPos(e);
@@ -1491,6 +1499,7 @@ function setupPadCanvas(canvasId, dataKey){
     e.preventDefault();
     drawing = false;
     ctx.beginPath();
+    if(scrollParent) scrollParent.style.overflowY = 'auto';
   };
 }
 
