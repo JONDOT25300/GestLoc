@@ -2147,7 +2147,6 @@ async function htmlToPdfBase64(htmlDoc, d, sealDate){
    'Trouble de voisinage constaté par décision de justice passée en force de chose jugée'
   ].forEach(c=>{
     checkPage(8);
-    doc.setFillColor(252,235,235); doc.rect(margin,y,2,[200,57,57]); 
     doc.setFillColor(252,235,235); doc.rect(margin+2,y,col-2,6,'F');
     doc.setFillColor(200,57,57); doc.rect(margin,y,2.5,6,'F');
     doc.setTextColor(...navy); doc.setFont('helvetica','normal'); doc.setFontSize(7);
