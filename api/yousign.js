@@ -22,7 +22,8 @@ export default async function handler(req, res) {
       body: fd
     });
     const doc = await r1.json();
-    if (!r1.ok) throw new Error(JSON.stringify(doc));
+console.log('DOC RESPONSE:', JSON.stringify(doc));
+if (!r1.ok) throw new Error(JSON.stringify(doc));
 
     const r2 = await fetch(`${BASE}/signature_requests`, {
       method: 'POST',
