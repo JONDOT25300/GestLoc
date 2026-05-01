@@ -1436,9 +1436,11 @@ function renderParaphe(){
     </div>
   `;
   padData = {b:{done:false,data:null}, l:{done:false,data:null}};
-  setupPadCanvas('pb','b');
-  setupPadCanvas('pl','l');
-  refreshPageStrip();
+  setTimeout(()=>{
+    setupPadCanvas('canvas-pb','b');
+    setupPadCanvas('canvas-pl','l');
+    refreshPageStrip();
+  }, 50);
 }
 
 function setupPadCanvas(canvasId, dataKey){
