@@ -1942,14 +1942,14 @@ async function sendToYousign(){
         pdfBase64,
         adresse: last.pAdresse||'Contrat de location',
         bailleur: {
-          prenom: (last.bNom||'Bailleur').split(' ')[0],
-          nom: (last.bNom||'').split(' ').slice(1).join(' ')||'.',
+          prenom: (last.bNom||'Bailleur').split(' ')[0].replace(/[^a-zA-ZÀ-ÿ\- ]/g,'') || 'Bailleur',
+          nom: ((last.bNom||'').split(' ').slice(1).join(' ') || 'Inconnu').replace(/[^a-zA-ZÀ-ÿ\- ]/g,'') || 'Inconnu',
           email: last.bEmail,
           telephone: telB
         },
         locataire: {
-          prenom: last.lPrenom||'Locataire',
-          nom: last.lNom||'.',
+          prenom: (last.lPrenom||'Locataire').replace(/[^a-zA-ZÀ-ÿ\- ]/g,'') || 'Locataire',
+          nom: (last.lNom||'Inconnu').replace(/[^a-zA-ZÀ-ÿ\- ]/g,'') || 'Inconnu',
           email: last.lEmail,
           telephone: telL
         }
