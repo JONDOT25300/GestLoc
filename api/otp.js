@@ -11,15 +11,24 @@ function getGoogleAuth() {
   
   let key;
   try {
-    // Vercel peut échapper les \n — on les restaure
-    const cleaned = raw.replace(/\\n/g, '\n');
+    // Nettoyer les caractères de contrôle qui cassent JSON.parse
+    // tout en préservant les \n légitimes dans la clé privée
+    const cleaned = raw
+      .replace(/\r\n/g, '\\n')  // CRLF Windows
+      .replace(/\r/g, '\\n')    // CR seul
+      .replace(/\n/g, '\\n');   // LF seul (sauf dans les strings JSON)
     key = JSON.parse(cleaned);
   } catch(e) {
-    throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON invalide: ' + e.message);
+    // Deuxième tentative : parser tel quel
+    try {
+      key = JSON.parse(raw);
+    } catch(e2) {
+      throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON invalide: ' + e2.message);
+    }
   }
 
-  // Restaurer les sauts de ligne dans la clé privée si nécessaire
-  if (key.private_key && !key.private_key.includes('\n')) {
+  // Restaurer les sauts de ligne dans la clé privée
+  if (key.private_key) {
     key.private_key = key.private_key.replace(/\\n/g, '\n');
   }
 
