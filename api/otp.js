@@ -8,7 +8,21 @@ const otpStore = new Map();
 function getGoogleAuth() {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (!raw) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON manquant');
-  const key = JSON.parse(raw);
+  
+  let key;
+  try {
+    // Vercel peut échapper les \n — on les restaure
+    const cleaned = raw.replace(/\\n/g, '\n');
+    key = JSON.parse(cleaned);
+  } catch(e) {
+    throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON invalide: ' + e.message);
+  }
+
+  // Restaurer les sauts de ligne dans la clé privée si nécessaire
+  if (key.private_key && !key.private_key.includes('\n')) {
+    key.private_key = key.private_key.replace(/\\n/g, '\n');
+  }
+
   return new google.auth.JWT(
     key.client_email,
     null,
