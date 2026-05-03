@@ -292,6 +292,17 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    // ── ACTION: testContract — test sans OTP ni email ──
+    if (action === 'testContract') {
+      const d = contractData;
+      if (!d) throw new Error('contractData manquant');
+      const testSealDate = new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      console.log('🧪 MODE TEST — génération PDF sans envoi email...');
+      const pdfBase64 = await generateContractPdf(d, testSealDate);
+      console.log('✅ PDF généré en mode test, taille:', pdfBase64.length, 'chars base64');
+      return res.status(200).json({ success: true, test: true, pdfSize: pdfBase64.length, message: 'PDF généré avec succès depuis Google Docs !' });
+    }
+
     return res.status(400).json({ error: 'Action invalide' });
 
   } catch (e) {
